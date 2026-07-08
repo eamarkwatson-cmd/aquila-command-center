@@ -1,7 +1,7 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { BarChart2, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import {
+import { BarChart2, useEffect, useState } from "react";
+import { BarChart2,
   LayoutDashboard,
   Linkedin,
   ListChecks,
@@ -12,11 +12,11 @@ import {
   LogOut,
   AlertTriangle,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { BarChart2, supabase } from "@/integrations/supabase/client";
+import { BarChart2, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BarChart2, format } from "date-fns";
+import { BarChart2, cn } from "@/lib/utils";
+import { BarChart2, toast } from "sonner";
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
@@ -26,6 +26,7 @@ const NAV = [
   { to: "/inbox", label: "Inbox Highlights", icon: Inbox },
   { to: "/calendar", label: "Calendar", icon: Calendar },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/weekly", label: "Weekly Review", icon: BarChart2 },
 ] as const;
 
 function greetingFor(name: string | null | undefined) {
