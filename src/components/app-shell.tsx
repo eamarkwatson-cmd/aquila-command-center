@@ -10,6 +10,7 @@ import {
   Calendar,
   Settings,
   LogOut,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,17 +39,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserEmail(user.email ?? null);
       const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
       setDisplayName(data?.display_name ?? user.email?.split("@")[0] ?? null);
     })();
   }, []);
 
-  // Items needing attention: overdue delegations + delegations awaiting Mark
+  const isKennedy = userEmail === "kennedy.katua@athena.com";
+
+  // Attention count — overdue or waiting on Mark
   const { data: attention = 0 } = useQuery({
     queryKey: ["attention-count"],
     queryFn: async () => {
@@ -58,6 +63,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         .neq("status", "Done")
         .or("status.eq.Overdue,owner.eq.Mark");
       return count ?? 0;
+    },
+  });
+
+  // Escalated count — items waiting on Mark for 7+ days
+  const { data: escalatedCount = 0 } = useQuery({
+    queryKey: ["escalated-count"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("delegations")
+        .select("id, owner, updated_at, status")
+        .neq("status", "Done")
+        .eq("owner", "Mark");
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return (data ?? []).filter((d: any) => new Date(d.updated_at) < sevenDaysAgo).length;
     },
   });
 
@@ -124,10 +144,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               {format(new Date(), "EEEE, MMMM d, yyyy")}
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs">
-            <span className="h-2 w-2 rounded-full bg-gold" />
-            <span className="font-medium text-foreground">{attention}</span>
-            <span className="text-muted-foreground">need attention</span>
+          <div className="flex items-center gap-2">
+            {isKennedy && escalatedCount > 0 && (
+              <div className="flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs">
+                <AlertTriangle className="h-3 w-3 text-destructive" />
+                <span className="font-medium text-destructive">{escalatedCount} escalated</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs">
+              <span className="h-2 w-2 rounded-full bg-gold" />
+              <span className="font-medium text-foreground">{attention}</span>
+              <span className="text-muted-foreground">need attention</span>
+            </div>
           </div>
         </header>
         <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>
