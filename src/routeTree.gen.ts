@@ -9,50 +9,257 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
+import { Route as AuthenticatedInvestmentsRouteImport } from './routes/_authenticated/investments'
+import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
+import { Route as AuthenticatedDelegationsRouteImport } from './routes/_authenticated/delegations'
+import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
+import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin.callback'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPipelineRoute = AuthenticatedPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedInvestmentsRoute =
+  AuthenticatedInvestmentsRouteImport.update({
+    id: '/investments',
+    path: '/investments',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDelegationsRoute =
+  AuthenticatedDelegationsRouteImport.update({
+    id: '/delegations',
+    path: '/delegations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthLinkedinCallbackRoute = AuthLinkedinCallbackRouteImport.update({
+  id: '/linkedin/callback',
+  path: '/linkedin/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/calendar': typeof AuthenticatedCalendarRoute
+  '/delegations': typeof AuthenticatedDelegationsRoute
+  '/inbox': typeof AuthenticatedInboxRoute
+  '/investments': typeof AuthenticatedInvestmentsRoute
+  '/pipeline': typeof AuthenticatedPipelineRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/linkedin/callback': typeof AuthLinkedinCallbackRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/calendar': typeof AuthenticatedCalendarRoute
+  '/delegations': typeof AuthenticatedDelegationsRoute
+  '/inbox': typeof AuthenticatedInboxRoute
+  '/investments': typeof AuthenticatedInvestmentsRoute
+  '/pipeline': typeof AuthenticatedPipelineRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth/linkedin/callback': typeof AuthLinkedinCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRouteWithChildren
+  '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
+  '/_authenticated/delegations': typeof AuthenticatedDelegationsRoute
+  '/_authenticated/inbox': typeof AuthenticatedInboxRoute
+  '/_authenticated/investments': typeof AuthenticatedInvestmentsRoute
+  '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/auth/linkedin/callback': typeof AuthLinkedinCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/calendar'
+    | '/delegations'
+    | '/inbox'
+    | '/investments'
+    | '/pipeline'
+    | '/settings'
+    | '/auth/linkedin/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/auth'
+    | '/calendar'
+    | '/delegations'
+    | '/inbox'
+    | '/investments'
+    | '/pipeline'
+    | '/settings'
+    | '/'
+    | '/auth/linkedin/callback'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/calendar'
+    | '/_authenticated/delegations'
+    | '/_authenticated/inbox'
+    | '/_authenticated/investments'
+    | '/_authenticated/pipeline'
+    | '/_authenticated/settings'
+    | '/_authenticated/'
+    | '/auth/linkedin/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pipeline': {
+      id: '/_authenticated/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof AuthenticatedPipelineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/investments': {
+      id: '/_authenticated/investments'
+      path: '/investments'
+      fullPath: '/investments'
+      preLoaderRoute: typeof AuthenticatedInvestmentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inbox': {
+      id: '/_authenticated/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AuthenticatedInboxRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/delegations': {
+      id: '/_authenticated/delegations'
+      path: '/delegations'
+      fullPath: '/delegations'
+      preLoaderRoute: typeof AuthenticatedDelegationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/calendar': {
+      id: '/_authenticated/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AuthenticatedCalendarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/auth/linkedin/callback': {
+      id: '/auth/linkedin/callback'
+      path: '/linkedin/callback'
+      fullPath: '/auth/linkedin/callback'
+      preLoaderRoute: typeof AuthLinkedinCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
+  AuthenticatedDelegationsRoute: typeof AuthenticatedDelegationsRoute
+  AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
+  AuthenticatedInvestmentsRoute: typeof AuthenticatedInvestmentsRoute
+  AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
+  AuthenticatedDelegationsRoute: AuthenticatedDelegationsRoute,
+  AuthenticatedInboxRoute: AuthenticatedInboxRoute,
+  AuthenticatedInvestmentsRoute: AuthenticatedInvestmentsRoute,
+  AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+interface AuthRouteChildren {
+  AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
