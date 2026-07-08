@@ -58,6 +58,9 @@ function Overview() {
   const [markLocation, setMarkLocation] = useState<string>("");
   const [savingLoc, setSavingLoc] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<{label:string;detail:string;url:string}[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [lastAiLocation, setLastAiLocation] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -134,9 +137,30 @@ function Overview() {
   }
 
   const locationKey = markLocation.toLowerCase().trim();
-  const currentSuggestions = locationKey
+  // Hardcoded fallback suggestions for common locations
+  const fallbackSuggestions = locationKey
     ? Object.entries(LOCATION_SUGGESTIONS).find(([k]) => locationKey.includes(k))?.[1] ?? null
     : null;
+
+  async function fetchAiSuggestions(loc: string) {
+    if (!loc.trim() || loc === lastAiLocation) return;
+    setAiLoading(true);
+    try {
+      const { data } = await supabase.functions.invoke("ai-suggestions", { body: { location: loc } });
+      if (data?.suggestions?.length > 0) {
+        setAiSuggestions(data.suggestions);
+        setLastAiLocation(loc);
+      }
+    } catch (e) {
+      // Fall back to hardcoded
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  const currentSuggestions = aiSuggestions.length > 0 && lastAiLocation === locationKey
+    ? { icon: "📍", items: aiSuggestions }
+    : fallbackSuggestions;
 
   return (
     <div className="space-y-8">
@@ -321,7 +345,7 @@ function Overview() {
                 type="text"
                 value={markLocation}
                 onChange={(e) => setMarkLocation(e.target.value)}
-                onBlur={(e) => saveLocation(e.target.value)}
+                onBlur={(e) => { saveLocation(e.target.value); fetchAiSuggestions(e.target.value); }}
                 placeholder="Type a city — Newport, Austin, Boston, Washington DC…"
                 className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-navy"
               />
@@ -349,9 +373,12 @@ function Overview() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Type Mark's location above to see proactive activity suggestions with booking links.
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Type any city and press Tab — suggestions will be generated for that location.
+                </p>
+                {aiLoading && <p className="text-xs text-navy animate-pulse">Generating suggestions for {markLocation}…</p>}
+              </div>
             )}
           </div>
         </section>
