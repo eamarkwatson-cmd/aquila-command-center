@@ -98,8 +98,20 @@
   }
 }
 
-/* Shared input class */
+/* Shared input class — used across all form fields */
 .inp {
-  @apply w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-navy;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+}
+.inp:focus {
+  ring-width: 1px;
+  border-color: #1B3A6B;
+  box-shadow: 0 0 0 1px #1B3A6B;
 }
 
