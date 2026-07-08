@@ -1,22 +1,15 @@
-import { BarChart2, Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { BarChart2, useEffect, useState } from "react";
-import { BarChart2,
-  LayoutDashboard,
-  Linkedin,
-  ListChecks,
-  Briefcase,
-  Inbox,
-  Calendar,
-  Settings,
-  LogOut,
-  AlertTriangle,
+import { useEffect, useState } from "react";
+import {
+  LayoutDashboard, Linkedin, ListChecks, Briefcase,
+  Inbox, Calendar, Settings, LogOut, AlertTriangle, BarChart2,
 } from "lucide-react";
-import { BarChart2, supabase } from "@/integrations/supabase/client";
-import { BarChart2, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart2, format } from "date-fns";
-import { BarChart2, cn } from "@/lib/utils";
-import { BarChart2, toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
@@ -25,8 +18,8 @@ const NAV = [
   { to: "/investments", label: "Investments", icon: Briefcase },
   { to: "/inbox", label: "Inbox Highlights", icon: Inbox },
   { to: "/calendar", label: "Calendar", icon: Calendar },
-  { to: "/settings", label: "Settings", icon: Settings },
   { to: "/weekly", label: "Weekly Review", icon: BarChart2 },
+  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function greetingFor(name: string | null | undefined) {
@@ -54,7 +47,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isKennedy = userEmail === "kennedy.katua@athena.com";
 
-  // Attention count — overdue or waiting on Mark
   const { data: attention = 0 } = useQuery({
     queryKey: ["attention-count"],
     queryFn: async () => {
@@ -67,7 +59,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
   });
 
-  // Escalated count — items waiting on Mark for 7+ days
   const { data: escalatedCount = 0 } = useQuery({
     queryKey: ["escalated-count"],
     queryFn: async () => {
@@ -99,9 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="h-7 w-7 rounded-sm bg-gold" />
           <div>
             <div className="text-base font-semibold tracking-tight">Aquila</div>
-            <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">
-              EA Dashboard
-            </div>
+            <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">EA Dashboard</div>
           </div>
         </div>
         <nav className="flex-1 px-3">
@@ -109,16 +98,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             const Icon = n.icon;
             const active = isActive(n.to);
             return (
-              <Link
-                key={n.to}
-                to={n.to}
+              <Link key={n.to} to={n.to}
                 className={cn(
                   "mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50",
-                )}
-              >
+                )}>
                 <Icon className="h-4 w-4" />
                 <span>{n.label}</span>
               </Link>
@@ -126,10 +112,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="border-t border-sidebar-border p-3">
-          <button
-            onClick={signOut}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
-          >
+          <button onClick={signOut}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/50">
             <LogOut className="h-4 w-4" />
             Sign out
           </button>
@@ -138,12 +122,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="flex-1 overflow-x-hidden">
         <header className="flex items-center justify-between border-b border-border bg-card px-8 py-5">
           <div>
-            <h1 className="text-lg font-semibold text-foreground">
-              {greetingFor(displayName)}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {format(new Date(), "EEEE, MMMM d, yyyy")}
-            </p>
+            <h1 className="text-lg font-semibold text-foreground">{greetingFor(displayName)}</h1>
+            <p className="text-xs text-muted-foreground">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
           </div>
           <div className="flex items-center gap-2">
             {isKennedy && escalatedCount > 0 && (
