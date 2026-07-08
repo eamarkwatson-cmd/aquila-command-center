@@ -18,6 +18,7 @@ import { Route as AuthenticatedInvestmentsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDelegationsRouteImport } from './routes/_authenticated/delegations'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
+import { Route as AuthenticatedWeeklyRouteImport } from './routes/_authenticated/weekly'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin.callback'
 
 const AuthRoute = AuthRouteImport.update({
@@ -66,6 +67,11 @@ const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedWeeklyRoute = AuthenticatedWeeklyRouteImport.update({
+  id: '/weekly',
+  path: '/weekly',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthLinkedinCallbackRoute = AuthLinkedinCallbackRouteImport.update({
   id: '/linkedin/callback',
   path: '/linkedin/callback',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/investments': typeof AuthenticatedInvestmentsRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/weekly': typeof AuthenticatedWeeklyRoute
   '/auth/linkedin/callback': typeof AuthLinkedinCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/investments': typeof AuthenticatedInvestmentsRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/weekly': typeof AuthenticatedWeeklyRoute
   '/': typeof AuthenticatedIndexRoute
   '/auth/linkedin/callback': typeof AuthLinkedinCallbackRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/weekly': typeof AuthenticatedWeeklyRoute
   '/auth/linkedin/callback': typeof AuthLinkedinCallbackRoute
 }
 export interface FileRouteTypes {
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/pipeline'
     | '/settings'
+    | '/weekly'
     | '/auth/linkedin/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/pipeline'
     | '/settings'
+    | '/weekly'
     | '/'
     | '/auth/linkedin/callback'
   id:
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pipeline'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/_authenticated/weekly'
     | '/auth/linkedin/callback'
   fileRoutesById: FileRoutesById
 }
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalendarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/weekly': {
+      id: '/_authenticated/weekly'
+      path: '/weekly'
+      fullPath: '/weekly'
+      preLoaderRoute: typeof AuthenticatedWeeklyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/auth/linkedin/callback': {
       id: '/auth/linkedin/callback'
       path: '/linkedin/callback'
@@ -232,6 +251,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedWeeklyRoute: typeof AuthenticatedWeeklyRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -242,6 +262,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedWeeklyRoute: AuthenticatedWeeklyRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
