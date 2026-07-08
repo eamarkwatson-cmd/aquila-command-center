@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { DelegationStatusDot, type DelegationStatus } from "@/components/status-badges";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { Plus, X, Trash2 } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
+import { Plus, X, Trash2, AlertTriangle, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/delegations")({
@@ -15,14 +15,15 @@ export const Route = createFileRoute("/_authenticated/delegations")({
 type Row = {
   id: string; title: string; description: string | null; owner: "Mark" | "Kennedy" | "Other";
   status: DelegationStatus; due_date: string | null; priority: "High" | "Medium" | "Low" | null;
-  source: string | null; notes: string | null;
+  source: string | null; notes: string | null; created_at: string; updated_at: string;
+  completed_at: string | null;
 };
 
 const STATUSES: DelegationStatus[] = ["Not Started", "In Progress", "Waiting", "Overdue", "Done"];
 
 function DelegationsPage() {
   const qc = useQueryClient();
-  const [preset, setPreset] = useState<"all" | "mark" | "kennedy">("all");
+  const [preset, setPreset] = useState<"all" | "mark" | "kennedy" | "escalated">("all");
   const [ownerF, setOwnerF] = useState<string>("all");
   const [statusF, setStatusF] = useState<string>("all");
   const [editing, setEditing] = useState<Row | null>(null);
@@ -37,14 +38,21 @@ function DelegationsPage() {
     },
   });
 
+  const escalated = rows.filter((r) =>
+    r.owner === "Mark" &&
+    r.status !== "Done" &&
+    differenceInDays(new Date(), new Date(r.updated_at)) >= 7
+  );
+
   const filtered = useMemo(() => {
     let r = rows;
     if (preset === "mark") r = r.filter((x) => x.owner === "Mark" && x.status !== "Done");
     if (preset === "kennedy") r = r.filter((x) => x.owner === "Kennedy" && x.status !== "Done");
+    if (preset === "escalated") r = escalated;
     if (ownerF !== "all") r = r.filter((x) => x.owner === ownerF);
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
     return r;
-  }, [rows, preset, ownerF, statusF]);
+  }, [rows, preset, ownerF, statusF, escalated]);
 
   async function updateStatus(id: string, status: DelegationStatus) {
     const patch: any = { status };
@@ -54,6 +62,24 @@ function DelegationsPage() {
     qc.invalidateQueries({ queryKey: ["delegations"] });
     qc.invalidateQueries({ queryKey: ["attention-count"] });
     qc.invalidateQueries({ queryKey: ["delegations-overview"] });
+    qc.invalidateQueries({ queryKey: ["escalated-count"] });
+  }
+
+  async function markDone(id: string) {
+    await updateStatus(id, "Done");
+    toast.success("Marked as done ✓");
+  }
+
+  async function snooze(id: string) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { error } = await supabase.from("delegations").update({
+      due_date: tomorrow.toISOString().split("T")[0],
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["delegations"] });
+    toast.success("Snoozed 24 hours");
   }
 
   async function remove(id: string) {
@@ -62,6 +88,11 @@ function DelegationsPage() {
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["delegations"] });
     toast.success("Deleted");
+  }
+
+  function proposeWhatsApp(title: string) {
+    const msg = encodeURIComponent(`Hi Mark — following up on: "${title}". This has been waiting for a while. Would you like to change our approach or can we close it out?`);
+    window.open(`https://wa.me/12108635696?text=${msg}`, "_blank");
   }
 
   return (
@@ -79,17 +110,41 @@ function DelegationsPage() {
         </button>
       </div>
 
+      {/* Escalation banner */}
+      {escalated.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium text-destructive">
+              {escalated.length} item{escalated.length > 1 ? "s" : ""} waiting on Mark for 7+ days — needs a new approach
+            </span>
+            <button
+              onClick={() => setPreset("escalated")}
+              className="ml-auto text-xs font-medium text-destructive underline"
+            >
+              View
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Filter presets */}
       <div className="flex flex-wrap items-center gap-2">
         {[
           { k: "all", label: "All" },
           { k: "mark", label: "Waiting on Mark" },
           { k: "kennedy", label: "Kennedy's queue" },
+          { k: "escalated", label: `Escalated${escalated.length > 0 ? ` (${escalated.length})` : ""}` },
         ].map((b) => (
           <button
             key={b.k} onClick={() => setPreset(b.k as any)}
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium transition",
-              preset === b.k ? "border-navy bg-navy text-navy-foreground" : "border-border bg-card text-foreground hover:bg-muted",
+              preset === b.k
+                ? b.k === "escalated"
+                  ? "border-destructive bg-destructive text-white"
+                  : "border-navy bg-navy text-navy-foreground"
+                : "border-border bg-card text-foreground hover:bg-muted",
             )}
           >{b.label}</button>
         ))}
@@ -116,20 +171,32 @@ function DelegationsPage() {
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-left">Priority</th>
               <th className="px-4 py-3 text-left">Due</th>
-              <th className="px-4 py-3"></th>
+              <th className="px-4 py-3 text-left">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.map((r) => {
               const overdue = r.status === "Overdue";
+              const isEscalated = escalated.some((e) => e.id === r.id);
+              const daysSinceUpdate = differenceInDays(new Date(), new Date(r.updated_at));
               return (
-                <tr key={r.id} className={cn("hover:bg-muted/30", overdue && "border-l-4 border-l-destructive")}>
+                <tr key={r.id} className={cn(
+                  "hover:bg-muted/30",
+                  overdue && "border-l-4 border-l-destructive",
+                  isEscalated && "bg-destructive/3",
+                )}>
                   <td className="px-4 py-3">
                     <button className="text-left font-medium text-foreground hover:underline"
                       onClick={() => setEditing(r)}>
                       {r.title}
                     </button>
                     {r.description && <div className="text-xs text-muted-foreground line-clamp-1">{r.description}</div>}
+                    {isEscalated && (
+                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-destructive">
+                        <AlertTriangle className="h-3 w-3" />
+                        {daysSinceUpdate}d waiting — needs new approach
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-foreground">{r.owner}</td>
                   <td className="px-4 py-3">
@@ -144,14 +211,52 @@ function DelegationsPage() {
                       </select>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-foreground">{r.priority ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn(
+                      "rounded-full px-2 py-0.5 text-xs font-medium",
+                      r.priority === "High" ? "bg-destructive/10 text-destructive" :
+                      r.priority === "Medium" ? "bg-gold/10 text-gold" :
+                      "bg-muted text-muted-foreground"
+                    )}>{r.priority ?? "—"}</span>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {r.due_date ? format(new Date(r.due_date), "MMM d") : "—"}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => remove(r.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {/* Mark done */}
+                      <button
+                        onClick={() => markDone(r.id)}
+                        title="Mark done"
+                        className="rounded p-1.5 text-muted-foreground hover:bg-status-approved/10 hover:text-status-approved"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </button>
+                      {/* Snooze */}
+                      <button
+                        onClick={() => snooze(r.id)}
+                        title="Snooze 24h"
+                        className="rounded p-1.5 text-muted-foreground hover:bg-gold/10 hover:text-gold"
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                      </button>
+                      {/* Propose solution (escalated items only) */}
+                      {isEscalated && (
+                        <button
+                          onClick={() => proposeWhatsApp(r.title)}
+                          title="Propose solution via WhatsApp"
+                          className="rounded p-1.5 text-destructive hover:bg-destructive/10"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {/* Delete */}
+                      <button onClick={() => remove(r.id)}
+                        title="Delete"
+                        className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -171,6 +276,7 @@ function DelegationsPage() {
             qc.invalidateQueries({ queryKey: ["delegations"] });
             qc.invalidateQueries({ queryKey: ["attention-count"] });
             qc.invalidateQueries({ queryKey: ["delegations-overview"] });
+            qc.invalidateQueries({ queryKey: ["escalated-count"] });
           }}
         />
       )}
