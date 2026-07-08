@@ -14,7 +14,234 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      delegations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          owner: string
+          priority: string | null
+          source: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          owner: string
+          priority?: string | null
+          source?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          owner?: string
+          priority?: string | null
+          source?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          join_url: string | null
+          meeting_id: string | null
+          notes: string | null
+          passcode: string | null
+          platform: string | null
+          start_time: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          join_url?: string | null
+          meeting_id?: string | null
+          notes?: string | null
+          passcode?: string | null
+          platform?: string | null
+          start_time: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          join_url?: string | null
+          meeting_id?: string | null
+          notes?: string | null
+          passcode?: string | null
+          platform?: string | null
+          start_time?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      inbox_items: {
+        Row: {
+          actioned: boolean
+          category: string
+          created_at: string
+          date: string
+          id: string
+          sender: string | null
+          subject: string
+          summary: string | null
+        }
+        Insert: {
+          actioned?: boolean
+          category?: string
+          created_at?: string
+          date?: string
+          id?: string
+          sender?: string | null
+          subject: string
+          summary?: string | null
+        }
+        Update: {
+          actioned?: boolean
+          category?: string
+          created_at?: string
+          date?: string
+          id?: string
+          sender?: string | null
+          subject?: string
+          summary?: string | null
+        }
+        Relationships: []
+      }
+      investments: {
+        Row: {
+          amount: number | null
+          created_at: string
+          custodian: string | null
+          entity: string | null
+          id: string
+          name: string
+          next_action: string | null
+          next_action_due: string | null
+          notes: string | null
+          platform: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          custodian?: string | null
+          entity?: string | null
+          id?: string
+          name: string
+          next_action?: string | null
+          next_action_due?: string | null
+          notes?: string | null
+          platform?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          custodian?: string | null
+          entity?: string | null
+          id?: string
+          name?: string
+          next_action?: string | null
+          next_action_due?: string | null
+          notes?: string | null
+          platform?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      linkedin_connection: {
+        Row: {
+          access_token: string
+          display_name: string | null
+          expires_at: string
+          id: string
+          person_urn: string
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          display_name?: string | null
+          expires_at: string
+          id?: string
+          person_urn: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          display_name?: string | null
+          expires_at?: string
+          id?: string
+          person_urn?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
