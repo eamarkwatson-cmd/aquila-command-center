@@ -97,3 +97,9 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* Shared input class */
+.inp {
+  @apply w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-navy;
+}
+
