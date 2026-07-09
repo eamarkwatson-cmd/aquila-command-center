@@ -71,7 +71,7 @@ function PipelinePage() {
       entity_id: entityId,
       action,
       performed_by: user?.email ?? null,
-      details,
+      details: details as any,
     });
   }
 
