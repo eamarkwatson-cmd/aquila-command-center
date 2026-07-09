@@ -102,7 +102,7 @@ function Consent() {
               Requested access
             </div>
             <ul className="mt-2 space-y-1 text-sm text-foreground">
-              {scopes.map((s) => (
+              {scopes.map((s: string) => (
                 <li key={s} className="flex items-start gap-2">
                   <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-gold" />
                   <span>{scopeLabel(s)}</span>
