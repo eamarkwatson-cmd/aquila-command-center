@@ -14,8 +14,8 @@ export const Route = createFileRoute("/_authenticated/")({
 
 type Post = { id: string; title: string; status: string | null; scheduledDate: string | null; finalCaption: string };
 type Delegation = { id: string; title: string; owner: string; status: string; priority: string | null; due_date: string | null; notes: string | null; created_at: string; updated_at: string };
-type CalendarEvent = { id: string; title: string; start_time: string; end_time: string; platform: string | null; join_url: string | null; meeting_id: string | null; passcode: string | null };
-type InboxItem = { id: string; subject: string; sender: string; category: string; summary: string; actioned: boolean };
+type CalendarEvent = { id: string; title: string; start_time: string; end_time: string | null; platform: string | null; join_url: string | null; meeting_id: string | null; passcode: string | null };
+type InboxItem = { id: string; subject: string; sender: string | null; category: string; summary: string | null; actioned: boolean };
 
 const LOCATION_SUGGESTIONS: Record<string, { icon: string; items: { label: string; detail: string; url: string }[] }> = {
   newport: { icon: "⛵", items: [
@@ -266,7 +266,7 @@ function Overview() {
                 <div>
                   <div className="text-sm font-medium">{e.title}</div>
                   <div className="text-xs text-muted-foreground">
-                    {format(new Date(e.start_time), "h:mm a")} – {format(new Date(e.end_time), "h:mm a")}
+                    {format(new Date(e.start_time), "h:mm a")}{e.end_time ? ` – ${format(new Date(e.end_time), "h:mm a")}` : ""}
                     {e.platform ? ` · ${e.platform}` : ""}
                   </div>
                   {e.meeting_id && (

@@ -102,7 +102,7 @@ function InvestmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("investments").select("*").order("name");
       if (error) throw error;
-      return (data as Investment[]) ?? [];
+      return ((data ?? []) as unknown) as Investment[];
     },
   });
 
@@ -235,7 +235,7 @@ function InvestmentPanel({ investment, onClose, onSaved, onDelete }: { investmen
     setSaving(true);
     let error;
     if (investment?.id) {
-      ({ error } = await supabase.from("investments").update({ ...form, updated_at: new Date().toISOString() }).eq("id", investment.id));
+      ({ error } = await supabase.from("investments").update({ ...(form as any), updated_at: new Date().toISOString() }).eq("id", investment.id));
     } else {
       ({ error } = await supabase.from("investments").insert(form as any));
     }
