@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://jmiiewqseygocjxgjpjy.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "aquila-ea-dashboard",
+      "version": "0.1.0",
+      "title": "Aquila EA Dashboard"
+    },
+    "tools": [
+      {
+        "name": "list_delegations",
+        "title": "List delegations",
+        "description": "List Aquila delegations (tasks). Optionally filter by status or owner.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Filter by status, e.g. 'Not Started', 'In Progress', 'Done'."
+            },
+            "owner": {
+              "type": "string",
+              "description": "Filter by owner name."
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "description": "Max rows to return (default 50)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_delegation",
+        "title": "Create delegation",
+        "description": "Create a new delegation (task) for Mark or Kennedy.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Delegation title."
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Assignee, e.g. 'Kennedy' or 'Mark'."
+            },
+            "description": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "description": "Default 'Not Started'."
+            },
+            "priority": {
+              "type": "string",
+              "description": "Low / Medium / High."
+            },
+            "due_date": {
+              "type": "string",
+              "description": "YYYY-MM-DD."
+            },
+            "source": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "owner"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_delegation_status",
+        "title": "Update delegation status",
+        "description": "Change the status of an existing delegation. Sets completed_at when status is 'Done'.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Delegation id."
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "description": "New status."
+            }
+          },
+          "required": [
+            "id",
+            "status"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_investments",
+        "title": "List investments",
+        "description": "List Aquila portfolio investments with next actions.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_events",
+        "title": "List calendar events",
+        "description": "List upcoming or recent calendar events for Mark.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "ISO datetime lower bound (inclusive)."
+            },
+            "to": {
+              "type": "string",
+              "description": "ISO datetime upper bound (exclusive)."
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_inbox",
+        "title": "List inbox items",
+        "description": "List curated inbox items shown on the dashboard.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "actioned": {
+              "type": "boolean"
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
