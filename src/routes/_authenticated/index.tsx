@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, Calendar, CheckCircle2, Inbox, Linkedin, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MarksWeek } from "@/components/marks-week";
 
 export const Route = createFileRoute("/_authenticated/")({
   component: Overview,
@@ -80,6 +81,24 @@ london: { icon: "🇬🇧", items: [
     { label: "Tennis — USTA Billie Jean King National", detail: "Flushing Meadows, Queens · Public courts available · usta.com", url: "https://www.usta.com" },
   ]},
 };
+
+// Attention scoring
+function scoreItem(item: { status?: string; priority?: string | null; owner?: string; due_date?: string | null }): number {
+  let score = 0;
+  if (item.status === "Overdue") score += 50;
+  if (item.due_date && new Date(item.due_date) <= new Date() && item.status !== "Done") score += 30;
+  if (item.owner === "Mark") score += 25;
+  if (item.priority === "High") score += 25;
+  if (item.status === "Waiting") score += 20;
+  return score;
+}
+function scoreLabel(score: number): { label: string; color: string } {
+  if (score >= 75) return { label: "Critical", color: "text-destructive" };
+  if (score >= 50) return { label: "High", color: "text-status-review" };
+  if (score >= 25) return { label: "Medium", color: "text-gold" };
+  return { label: "Low", color: "text-muted-foreground" };
+}
+
 
 function Overview() {
   const [emailsCleared, setEmailsCleared] = useState<number>(0);
@@ -347,7 +366,10 @@ function Overview() {
                   <DelegationStatusDot status={d.status as DelegationStatus} />
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{d.title}</div>
-                    <div className="text-xs text-muted-foreground">{d.owner} · {d.status}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{d.owner} · {d.status}</span>
+                      {(() => { const s = scoreItem(d); const sl = scoreLabel(s); return s >= 25 ? <span className={"text-[10px] font-medium " + sl.color}>{sl.label}</span> : null; })()}
+                    </div>
                   </div>
                 </div>
                 {d.status === "Overdue" && (
@@ -361,54 +383,17 @@ function Overview() {
           </ul>
         </section>
 
-        {/* Mark's week */}
+        {/* Mark's week — wired to city_recommendations Supabase table */}
         <section className="rounded-lg border border-border bg-card">
           <header className="flex items-center gap-2 border-b border-border px-5 py-3">
             <MapPin className="h-4 w-4 text-navy" />
             <h2 className="text-sm font-semibold">Mark's week</h2>
           </header>
-          <div className="p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-medium text-muted-foreground w-16 shrink-0">Location</label>
-              <input
-                type="text"
-                value={markLocation}
-                onChange={(e) => setMarkLocation(e.target.value)}
-                onBlur={(e) => { saveLocation(e.target.value); fetchAiSuggestions(e.target.value); }}
-                placeholder="Type a city — Newport, Austin, Boston, Washington DC…"
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-navy"
-              />
-              {savingLoc && <span className="text-xs text-muted-foreground">saving…</span>}
-            </div>
-
-            {currentSuggestions ? (
-              <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {currentSuggestions.icon} Suggested for {markLocation}
-                </div>
-                {currentSuggestions.items.map((s, i) => (
-                  <div key={i} className="rounded-md border border-border bg-background p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-foreground">{s.label}</span>
-                      <a href={s.url}
-                        target={s.url.startsWith("http") ? "_blank" : undefined}
-                        rel="noreferrer"
-                        className="shrink-0 rounded-md bg-navy px-2.5 py-1 text-xs font-medium text-white hover:bg-navy/90">
-                        Book it
-                      </a>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{s.detail}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Type any city and press Tab — suggestions will be generated for that location.
-                </p>
-                {aiLoading && <p className="text-xs text-navy animate-pulse">Generating suggestions for {markLocation}…</p>}
-              </div>
-            )}
+          <div className="p-5">
+            <MarksWeek
+              savedLocation={markLocation}
+              onSaveLocation={(v) => { setMarkLocation(v); saveLocation(v); }}
+            />
           </div>
         </section>
       </div>
