@@ -50,6 +50,35 @@ const LOCATION_SUGGESTIONS: Record<string, { icon: string; items: { label: strin
     { label: "Hotel gym or spa booking", detail: "Check hotel amenities and pre-book gym session or spa treatment for the trip", url: "mailto:kennedy.katua@athena.com?subject=Book%20hotel%20amenity%20for%20Mark&body=Please%20pre-book%20a%20gym%20session%20or%20spa%20treatment%20for%20Mark%20at%20his%20hotel." },
     { label: "Local restaurant research", detail: "Research top-rated restaurants near Mark's hotel for dinner options", url: "mailto:kennedy.katua@athena.com?subject=Restaurant%20research%20for%20trip&body=Please%20research%20top%20restaurant%20options%20near%20Mark%27s%20hotel%20for%20this%20trip." },
   ]},
+london: { icon: "🇬🇧", items: [
+    { label: "Golf — Wentworth Club", detail: "Virginia Water, Surrey · +44 1344 842201 · wentworth.com · Guest play enquiry via website", url: "mailto:kennedy.katua@athena.com?subject=Golf%20at%20Wentworth&body=Please%20arrange%20golf%20at%20Wentworth%20Club%20for%20Mark." },
+    { label: "Dinner — Scott's Mayfair", detail: "20 Mount St, Mayfair · +44 20 7495 7309 · Classic seafood · Book via OpenTable", url: "https://www.opentable.co.uk/scotts-restaurant" },
+    { label: "Dinner — The Ledbury", detail: "127 Ledbury Rd, Notting Hill · +44 20 7792 9090 · Michelin two-star · Reserve ahead via website", url: "https://theledbury.com" },
+    { label: "Tennis — Queen's Club", detail: "Palliser Rd, West Kensington · +44 20 7385 3421 · Guest play with member", url: "mailto:kennedy.katua@athena.com?subject=Tennis%20Queens%20Club%20London&body=Please%20arrange%20tennis%20at%20Queen%27s%20Club%20London%20for%20Mark." },
+  ]},
+  geneva: { icon: "🇨🇭", items: [
+    { label: "Golf — Golf Club de Genève", detail: "Route de la Capite 70, Cologny · +41 22 707 48 00 · gcgeneve.ch · Guest play with member", url: "mailto:kennedy.katua@athena.com?subject=Golf%20Geneva&body=Please%20arrange%20golf%20at%20Golf%20Club%20de%20Gen%C3%A8ve%20for%20Mark." },
+    { label: "Sailing — Société Nautique de Genève", detail: "Port Noir · sng.ch · Lake Geneva sailing · Contact for visitor and charter options", url: "https://www.sng.ch" },
+    { label: "Dinner — Le Chat-Botté (Beau-Rivage)", detail: "Quai du Mont-Blanc 13 · +41 22 716 69 20 · Fine dining with lake views · Reserve ahead", url: "https://www.beau-rivage.ch/en/dining/le-chat-botte" },
+    { label: "Dinner — La Bottega", detail: "Rue de Rive 5 · +41 22 736 00 00 · Italian fine dining · Central Geneva", url: "mailto:kennedy.katua@athena.com?subject=Dinner%20La%20Bottega%20Geneva&body=Please%20reserve%20La%20Bottega%20Geneva%20for%20Mark." },
+  ]},
+  zurich: { icon: "🇨🇭", items: [
+    { label: "Golf — Golf & Country Club Zürich", detail: "Zumikon · +41 44 918 00 11 · gccz.ch · One of Switzerland's top courses · Guest play with member", url: "mailto:kennedy.katua@athena.com?subject=Golf%20Zurich&body=Please%20arrange%20golf%20at%20GCC%20Zurich%20for%20Mark." },
+    { label: "Dinner — Restaurant Pavillon (Baur au Lac)", detail: "Talstrasse 1 · +41 44 220 50 20 · Michelin-starred · Reserve well ahead", url: "https://www.bauraulac.ch/en/dining/restaurant-pavillon" },
+    { label: "Dinner — Kronenhalle", detail: "Rämistrasse 4 · +41 44 262 99 00 · Legendary Zurich institution with art collection", url: "mailto:kennedy.katua@athena.com?subject=Dinner%20Kronenhalle%20Zurich&body=Please%20reserve%20Kronenhalle%20for%20Mark." },
+  ]},
+  paris: { icon: "🇫🇷", items: [
+    { label: "Golf — Golf National", detail: "2 Ave du Golf, Guyancourt · +33 1 30 43 36 00 · Home of the Ryder Cup · Visitor rounds available", url: "https://www.golf-national.com" },
+    { label: "Dinner — Taillevent", detail: "15 Rue Lamennais, 8th · +33 1 44 95 15 01 · taillevent.com · Classic French fine dining", url: "https://www.taillevent.com" },
+    { label: "Dinner — Le Grand Véfour", detail: "17 Rue de Beaujolais, Palais Royal · +33 1 42 96 56 27 · Michelin-starred historic restaurant", url: "mailto:kennedy.katua@athena.com?subject=Dinner%20Le%20Grand%20Vefour%20Paris&body=Please%20reserve%20Le%20Grand%20V%C3%A9four%20for%20Mark." },
+    { label: "Tennis — Racing Club de France", detail: "Bois de Boulogne · +33 1 45 27 12 30 · Historic club · Visitor play with member", url: "mailto:kennedy.katua@athena.com?subject=Tennis%20Paris&body=Please%20arrange%20tennis%20at%20Racing%20Club%20de%20France%20for%20Mark." },
+  ]},
+  "new york": { icon: "🗽", items: [
+    { label: "Golf — Winged Foot Golf Club", detail: "Mamaroneck, NY · +1 914 698 8400 · Arrange through member contact", url: "mailto:kennedy.katua@athena.com?subject=Golf%20Winged%20Foot&body=Please%20arrange%20golf%20at%20Winged%20Foot%20for%20Mark." },
+    { label: "Dinner — Le Bernardin", detail: "155 W 51st St · +1 212 554 1515 · le-bernardin.com · Michelin three-star seafood", url: "https://www.le-bernardin.com" },
+    { label: "Dinner — Per Se", detail: "10 Columbus Circle · +1 212 823 9335 · Michelin three-star · Reserve 4-6 weeks ahead", url: "https://www.thomaskeller.com/perseny" },
+    { label: "Tennis — USTA Billie Jean King National", detail: "Flushing Meadows, Queens · Public courts available · usta.com", url: "https://www.usta.com" },
+  ]},
 };
 
 function Overview() {
