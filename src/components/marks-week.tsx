@@ -29,15 +29,22 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
     queryKey: ["city-recs", location],
     queryFn: async () => {
       if (!location.trim()) return [];
+      // Normalise query and split into tokens so "Washington DC" matches "Washington"
       const q = location.trim().toLowerCase();
+      const tokens = [...new Set([q, ...q.split(/[\s,/]+/).filter((t) => t.length > 2)])];
+
       const { data, error } = await supabase
         .from("city_recommendations")
         .select("*")
         .order("category");
       if (error) throw error;
-      return (data ?? []).filter((r: Rec) =>
-        r.city.toLowerCase().includes(q) || (r.region ?? "").toLowerCase().includes(q)
-      );
+
+      return (data ?? []).filter((r: Rec) => {
+        const haystack = [
+          r.city, r.region, r.name, r.address, r.detail, r.best_for,
+        ].map((v) => (v ?? "").toLowerCase()).join(" ");
+        return tokens.some((t) => haystack.includes(t));
+      });
     },
     enabled: !!location.trim(),
   });
@@ -147,10 +154,12 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
 
       {/* Recommendations */}
       {location.trim() && recs.length === 0 && (
-        <p className="text-sm text-muted-foreground py-4">
-          No curated recommendations for "{location}" yet.
-          Cities covered: Newport, Washington DC, Austin, Boston, New York, Geneva, London, Paris.
-        </p>
+        <div className="rounded-md border border-border bg-muted/30 px-4 py-4 text-sm">
+          <div className="font-medium text-foreground mb-1">No results for "{location}"</div>
+          <p className="text-muted-foreground">Searched city, region, name, address, and notes.</p>
+          <p className="text-muted-foreground mt-1">Cities in the playbook: Newport · Washington DC / Georgetown · Austin · San Antonio · Boston / Cambridge · New York · Geneva · London · Paris.</p>
+          <p className="text-xs text-muted-foreground mt-1">To add this city, insert rows into the city_recommendations table in Supabase.</p>
+        </div>
       )}
 
       {!location.trim() && (
