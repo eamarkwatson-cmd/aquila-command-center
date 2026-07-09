@@ -62,12 +62,15 @@ Deno.serve(async (req) => {
       const p = page.properties ?? {};
       return {
         id: page.id,
+        url: page.url ?? null,
         title: extractRichText(p["Title"]) || "(untitled)",
         status: extractSelect(p["Status"]),
         finalCaption: extractRichText(p["Final Caption"]),
         scheduledDate: extractDate(p["Scheduled Date"]),
         platform: extractSelect(p["Platform"]),
         notes: extractRichText(p["Notes / Feedback"]),
+        lastEditedTime: page.last_edited_time ?? null,
+        createdTime: page.created_time ?? null,
       };
     });
     return new Response(JSON.stringify({ posts }), {
