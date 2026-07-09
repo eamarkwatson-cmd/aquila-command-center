@@ -235,7 +235,7 @@ function InvestmentPanel({ investment, onClose, onSaved, onDelete }: { investmen
     setSaving(true);
     let error;
     if (investment?.id) {
-      ({ error } = await supabase.from("investments").update({ ...form, updated_at: new Date().toISOString() }).eq("id", investment.id));
+      ({ error } = await supabase.from("investments").update({ ...(form as any), updated_at: new Date().toISOString() }).eq("id", investment.id));
     } else {
       ({ error } = await supabase.from("investments").insert(form as any));
     }
