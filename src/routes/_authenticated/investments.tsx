@@ -95,10 +95,33 @@ function InvestmentsPage() {
   const [categoryF, setCategoryF] = useState("all");
   const [selected, setSelected] = useState<Investment | null>(null);
   const [creating, setCreating] = useState(false);
-  const [seeded, setSeeded] = useState(false);
+  // --- Notion is primary source; Supabase local is true fallback ---
+  const {
+    data: notionData,
+    isLoading: notionLoading,
+    error: notionError,
+    refetch: refetchNotion,
+    isFetching: notionFetching,
+  } = useQuery({
+    queryKey: ["investments-notion"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("notion-list-investments");
+      if (error) throw new Error(error.message);
+      return data as {
+        investments: Investment[];
+        count: number;
+        sync_status: string;
+        using_fallback_source_id?: boolean;
+        error?: string;
+        fetched_at?: string;
+      };
+    },
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const { data: investments = [], isLoading } = useQuery<Investment[]>({
-    queryKey: ["investments"],
+  const { data: localInvestments = [] } = useQuery<Investment[]>({
+    queryKey: ["investments-local"],
     queryFn: async () => {
       const { data, error } = await supabase.from("investments").select("*").order("name");
       if (error) throw error;
@@ -106,20 +129,21 @@ function InvestmentsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!isLoading && investments.length < 10 && !seeded) {
-      setSeeded(true);
-      (async () => {
-        const existing = new Set(investments.map((i) => i.name.toLowerCase()));
-        const toInsert = ALL_INVESTMENTS.filter((i) => !existing.has(i.name.toLowerCase()));
-        if (toInsert.length === 0) return;
-        const { error } = await supabase.from("investments").insert(toInsert as any);
-        if (error) { console.error(error); return; }
-        qc.invalidateQueries({ queryKey: ["investments"] });
-        toast.success(`${toInsert.length} investments loaded ✓`);
-      })();
-    }
-  }, [isLoading, investments.length, seeded]);
+  const notionFailed = !!notionError
+    || notionData?.sync_status === "notion_error"
+    || notionData?.sync_status === "exception"
+    || notionData?.sync_status === "missing_api_key";
+  const notionEmpty  = !notionFailed && notionData?.sync_status === "empty";
+  const notionOk     = !notionFailed && (notionData?.investments?.length ?? 0) > 0;
+
+  // Notion when it returns rows; local only on actual failure
+  const investments: Investment[] = notionOk
+    ? (notionData!.investments ?? [])
+    : notionFailed
+      ? localInvestments
+      : [];
+
+  const isLoading = notionLoading;
 
   const filtered = useMemo(() => {
     let r = investments;
@@ -148,13 +172,43 @@ function InvestmentsPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Investments</h1>
-          <p className="text-sm text-muted-foreground">{isLoading ? "Loading…" : `${investments.length} holdings · $${(totalCommitted/1_000_000).toFixed(2)}M tracked`}</p>
+          <p className="text-sm text-muted-foreground">
+            {isLoading
+              ? "Loading from Notion…"
+              : notionOk
+              ? `${investments.length} holdings · $${(totalCommitted/1_000_000).toFixed(2)}M · Notion`
+              : notionFailed
+              ? `${localInvestments.length} holdings (local fallback — Notion unavailable)`
+              : notionEmpty
+              ? "Notion returned 0 rows — check integration access"
+              : `${investments.length} holdings`}
+          </p>
         </div>
         <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy/90">
           <Plus className="h-4 w-4" /> Add
         </button>
       </div>
 
+      {/* Sync status */}
+      {!notionLoading && notionFailed && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
+          <span className="font-medium text-destructive">Notion unavailable — </span>
+          <span className="text-muted-foreground">
+            {notionData?.error ?? (notionError as Error)?.message ?? "Could not reach Notion"}.{" "}
+            Showing {localInvestments.length} locally saved investment{localInvestments.length !== 1 ? "s" : ""} as fallback.
+          </span>
+        </div>
+      )}
+      {!notionLoading && notionEmpty && (
+        <div className="rounded-md border border-gold/30 bg-gold/5 px-4 py-3 text-sm text-muted-foreground">
+          Notion returned 0 investments. Check that the Aquila Dashboard integration has access to the Investments database in Notion.
+        </div>
+      )}
+      {!notionLoading && notionOk && notionData?.using_fallback_source_id && (
+        <div className="rounded-md border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+          Using default source ID. Set NOTION_INVESTMENTS_SOURCE_ID in Supabase → Edge Functions → Secrets for a custom source.
+        </div>
+      )}
       {actionNeeded.length > 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-5 py-3">
           <div className="flex items-center gap-2 mb-2"><AlertCircle className="h-4 w-4 text-destructive" /><span className="text-sm font-medium text-destructive">{actionNeeded.length} need immediate action</span></div>
