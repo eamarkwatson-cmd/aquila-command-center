@@ -5,29 +5,25 @@ import { PipelineBadge } from "@/components/status-badges";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
-import { Copy, Send, X, Loader2, ExternalLink } from "lucide-react";
+import { Copy, Send, X, Loader2, ExternalLink, RotateCcw, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/pipeline")({
   component: PipelinePage,
 });
 
 type Post = {
-  id: string;
-  url: string | null;
-  title: string;
-  status: string | null;
-  finalCaption: string;
-  scheduledDate: string | null;
-  platform: string | null;
-  notes: string;
-  lastEditedTime: string | null;
-  createdTime: string | null;
+  id: string; url: string | null; title: string; status: string | null;
+  finalCaption: string; scheduledDate: string | null; platform: string | null;
+  notes: string; lastEditedTime: string | null; createdTime: string | null;
 };
 
 function PipelinePage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Post | null>(null);
   const [posting, setPosting] = useState(false);
+  const [revisioning, setRevisioning] = useState(false);
+  const [revisionNote, setRevisionNote] = useState("");
+  const [showRevision, setShowRevision] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const { data, isLoading, error, refetch, isFetching, dataUpdatedAt } = useQuery({
@@ -59,19 +55,17 @@ function PipelinePage() {
     return acc;
   }, {});
 
-  async function copy(text: string) {
+  async function copy(text: string, postId: string) {
     await navigator.clipboard.writeText(text);
     toast.success("Caption copied");
+    await logActivity("copied_caption", postId, { title: selected?.title });
   }
 
   async function logActivity(action: string, entityId: string, details: Record<string, unknown>) {
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("activity_log").insert({
-      entity_type: "linkedin_post",
-      entity_id: entityId,
-      action,
-      performed_by: user?.email ?? null,
-      details: details as any,
+      entity_type: "linkedin_post", entity_id: entityId, action,
+      performed_by: user?.email ?? null, details: details as any,
     });
   }
 
@@ -86,15 +80,10 @@ function PipelinePage() {
       if ((data as any)?.error) throw new Error((data as any).error);
       const stamp = format(new Date(), "yyyy-MM-dd HH:mm");
       const { data: upd, error: uErr } = await supabase.functions.invoke("notion-update-status", {
-        body: {
-          pageId: selected.id,
-          status: "Posted",
-          appendNote: `Posted via dashboard on ${stamp}`,
-        },
+        body: { pageId: selected.id, status: "Posted", appendNote: `Posted via dashboard on ${stamp}` },
       });
       if (uErr) throw uErr;
       if ((upd as any)?.error) throw new Error((upd as any).error);
-
       const postId = (data as any)?.postId ?? null;
       await supabase.from("linkedin_post_metadata").upsert({
         notion_page_id: selected.id,
@@ -104,8 +93,7 @@ function PipelinePage() {
         last_error: null,
       }, { onConflict: "notion_page_id" });
       await logActivity("posted", selected.id, { title: selected.title, postId });
-
-      toast.success("Posted to LinkedIn");
+      toast.success("Posted to LinkedIn ✓");
       setSelected(null);
       qc.invalidateQueries({ queryKey: ["pipeline"] });
       refetch();
@@ -121,6 +109,32 @@ function PipelinePage() {
     }
   }
 
+  async function markNeedsRevision() {
+    if (!selected) return;
+    setRevisioning(true);
+    try {
+      const stamp = format(new Date(), "yyyy-MM-dd HH:mm");
+      const appendNote = revisionNote.trim()
+        ? `Needs revision (${stamp}): ${revisionNote.trim()}`
+        : `Needs revision (${stamp})`;
+      const { data: upd, error: uErr } = await supabase.functions.invoke("notion-update-status", {
+        body: { pageId: selected.id, status: "Needs Revision", appendNote },
+      });
+      if (uErr) throw uErr;
+      if ((upd as any)?.error) throw new Error((upd as any).error);
+      await logActivity("needs_revision", selected.id, { title: selected.title, note: revisionNote });
+      toast.success("Marked as Needs Revision");
+      setShowRevision(false);
+      setRevisionNote("");
+      setSelected(null);
+      refetch();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRevisioning(false);
+    }
+  }
+
   const statuses = ["all", ...Object.keys(counts)];
 
   return (
@@ -133,23 +147,18 @@ function PipelinePage() {
             {dataUpdatedAt ? ` Last refresh ${formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true })}.` : ""}
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-        >
+        <button onClick={() => refetch()}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           {isFetching ? "Refreshing…" : "Refresh from Notion"}
         </button>
       </div>
 
       {!linkedin && (
-        <Banner>
-          LinkedIn not connected. Connect Mark's LinkedIn in <a href="/settings" className="underline">Settings</a> to enable posting.
-        </Banner>
+        <Banner>LinkedIn not connected. Connect Mark's LinkedIn in <a href="/settings" className="underline">Settings</a> to enable posting.</Banner>
       )}
       {tokenExpired && (
-        <Banner>
-          LinkedIn token expired. Please reconnect in <a href="/settings" className="underline">Settings</a>.
-        </Banner>
+        <Banner>LinkedIn token expired. Please reconnect in <a href="/settings" className="underline">Settings</a>.</Banner>
       )}
 
       {data && (
@@ -158,16 +167,9 @@ function PipelinePage() {
             const label = s === "all" ? `All (${data.length})` : `${s} (${counts[s] ?? 0})`;
             const active = statusFilter === s;
             return (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={
-                  "rounded-full border px-3 py-1 text-xs font-medium transition " +
-                  (active
-                    ? "border-navy bg-navy text-navy-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted")
-                }
-              >
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={"rounded-full border px-3 py-1 text-xs font-medium transition " +
+                  (active ? "border-navy bg-navy text-navy-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted")}>
                 {label}
               </button>
             );
@@ -184,10 +186,8 @@ function PipelinePage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {filtered.map((p) => (
-          <button
-            key={p.id} onClick={() => setSelected(p)}
-            className="text-left rounded-lg border border-border bg-card p-5 shadow-sm transition hover:border-navy/40 hover:shadow"
-          >
+          <button key={p.id} onClick={() => setSelected(p)}
+            className="text-left rounded-lg border border-border bg-card p-5 shadow-sm transition hover:border-navy/40 hover:shadow">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-sm font-semibold text-foreground line-clamp-2">{p.title}</h3>
               <PipelineBadge status={p.status} />
@@ -213,11 +213,8 @@ function PipelinePage() {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-foreground/20" onClick={() => setSelected(null)}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex h-full w-full max-w-xl flex-col bg-card shadow-xl"
-          >
+        <div className="fixed inset-0 z-50 flex justify-end bg-foreground/20" onClick={() => { setSelected(null); setShowRevision(false); setRevisionNote(""); }}>
+          <div onClick={(e) => e.stopPropagation()} className="flex h-full w-full max-w-xl flex-col bg-card shadow-xl">
             <div className="flex items-start justify-between border-b border-border px-6 py-4">
               <div className="min-w-0">
                 <h2 className="text-base font-semibold text-foreground">{selected.title}</h2>
@@ -225,6 +222,9 @@ function PipelinePage() {
                   <PipelineBadge status={selected.status} />
                   {selected.scheduledDate && <span>{format(new Date(selected.scheduledDate), "MMM d, yyyy")}</span>}
                   <span>· {selected.finalCaption.length} chars</span>
+                  {selected.finalCaption.length > 3000 && (
+                    <span className="text-destructive font-medium">⚠️ Over 3,000 char LinkedIn limit</span>
+                  )}
                   {selected.lastEditedTime && (
                     <span>· edited {formatDistanceToNow(new Date(selected.lastEditedTime), { addSuffix: true })}</span>
                   )}
@@ -232,52 +232,71 @@ function PipelinePage() {
               </div>
               <div className="flex items-center gap-1">
                 {selected.url && (
-                  <a
-                    href={selected.url}
-                    target="_blank"
-                    rel="noreferrer"
+                  <a href={selected.url} target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
-                    title="Open in Notion"
-                  >
+                    title="Open in Notion" onClick={() => logActivity("opened_in_notion", selected.id, { title: selected.title })}>
                     <ExternalLink className="h-3.5 w-3.5" /> Notion
                   </a>
                 )}
-                <button onClick={() => setSelected(null)} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+                <button onClick={() => { setSelected(null); setShowRevision(false); setRevisionNote(""); }} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
                   <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
+
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Final Caption
-              </div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Final Caption</div>
               <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-foreground">
 {selected.finalCaption}
               </pre>
               {selected.notes && (
                 <>
-                  <div className="mt-6 mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Notes / Feedback
-                  </div>
+                  <div className="mt-6 mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Notes / Feedback</div>
                   <pre className="whitespace-pre-wrap break-words font-sans text-sm text-muted-foreground">
 {selected.notes}
                   </pre>
                 </>
               )}
+
+              {showRevision && (
+                <div className="mt-6 rounded-lg border border-status-review/30 bg-status-review/5 p-4">
+                  <div className="mb-2 text-xs font-medium text-status-review">Revision feedback (optional)</div>
+                  <textarea
+                    rows={3}
+                    value={revisionNote}
+                    onChange={(e) => setRevisionNote(e.target.value)}
+                    placeholder="Describe what needs to change..."
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-navy"
+                  />
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={markNeedsRevision} disabled={revisioning}
+                      className="rounded-md bg-status-review px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+                      {revisioning ? "Updating…" : "Confirm — Needs Revision"}
+                    </button>
+                    <button onClick={() => { setShowRevision(false); setRevisionNote(""); }}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2 border-t border-border px-6 py-4">
-              <button
-                onClick={() => copy(selected.finalCaption)}
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
-              >
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+              <button onClick={() => copy(selected.finalCaption, selected.id)}
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
                 <Copy className="h-4 w-4" /> Copy caption
               </button>
-              <button
-                onClick={postToLinkedIn}
-                disabled={posting || selected.status !== "Approved" || !linkedin || tokenExpired}
+              {!showRevision && selected.status !== "Posted" && (
+                <button onClick={() => setShowRevision(true)}
+                  className="inline-flex items-center gap-2 rounded-md border border-status-review/40 bg-status-review/10 px-3 py-2 text-sm font-medium text-status-review hover:bg-status-review/20">
+                  <RotateCcw className="h-4 w-4" /> Needs revision
+                </button>
+              )}
+              <button onClick={postToLinkedIn}
+                disabled={posting || selected.status !== "Approved" || !linkedin || !!tokenExpired}
                 className="ml-auto inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-medium text-navy-foreground hover:bg-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
-                title={selected.status !== "Approved" ? "Status must be Approved" : ""}
-              >
+                title={selected.status !== "Approved" ? "Status must be Approved to post" : ""}>
                 {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Post to LinkedIn
               </button>
@@ -291,8 +310,6 @@ function PipelinePage() {
 
 function Banner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-foreground">
-      {children}
-    </div>
+    <div className="rounded-md border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-foreground">{children}</div>
   );
 }
