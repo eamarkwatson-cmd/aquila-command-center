@@ -266,7 +266,7 @@ function Overview() {
                 <div>
                   <div className="text-sm font-medium">{e.title}</div>
                   <div className="text-xs text-muted-foreground">
-                    {format(new Date(e.start_time), "h:mm a")} – {format(new Date(e.end_time), "h:mm a")}
+                    {format(new Date(e.start_time), "h:mm a")}{e.end_time ? ` – ${format(new Date(e.end_time), "h:mm a")}` : ""}
                     {e.platform ? ` · ${e.platform}` : ""}
                   </div>
                   {e.meeting_id && (
