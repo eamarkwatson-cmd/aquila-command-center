@@ -102,7 +102,7 @@ function InvestmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("investments").select("*").order("name");
       if (error) throw error;
-      return (data as Investment[]) ?? [];
+      return ((data ?? []) as unknown) as Investment[];
     },
   });
 
