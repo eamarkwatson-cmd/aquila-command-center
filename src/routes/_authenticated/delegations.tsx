@@ -85,11 +85,14 @@ function DelegationsPage() {
   }, [rows, preset, escalated]);
 
   async function log(action: string, row: Row, extra?: Record<string, unknown>) {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("activity_log").insert({
-      entity_type: "delegation", entity_id: row.id, entity_title: row.title,
-      action, performed_by: user?.email ?? null, details: extra as any,
-    }).catch(() => {});
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("activity_log").insert({
+        entity_type: "delegation", entity_id: row.id,
+        action, performed_by: user?.email ?? null,
+        details: { title: row.title, ...(extra ?? {}) } as any,
+      });
+    } catch { /* non-fatal */ }
   }
 
   async function quickUpdate(id: string, patch: Partial<Row>, label: string, row: Row) {
