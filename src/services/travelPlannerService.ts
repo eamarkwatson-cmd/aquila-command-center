@@ -26,16 +26,31 @@ export type HotelOption = {
   address: string;
 };
 
+export type GroundTransportOption = {
+  id: string;
+  type: "Black Car" | "Car Rental" | "Rail" | "Taxi / Rideshare" | "Airport Transfer";
+  provider: string;
+  pickup: string;
+  dropoff: string;
+  estimatedMinutes: number;
+  estimatedPriceUSD: number | null;
+  phone: string | null;
+  notes: string | null;
+};
+
 export type TravelQuery = {
   origin: string;
   destination: string;
   departDate: string;
   returnDate: string;
+  tripType: "one-way" | "round-trip";
+  stops: "any" | "nonstop" | "1-stop" | "2+";
 };
 
 export type TravelResults = {
   flights: FlightOption[];
   hotels: HotelOption[];
+  groundTransport: GroundTransportOption[];
   destinationKey: string;
 };
 
@@ -140,6 +155,66 @@ function generateFlights(q: TravelQuery): FlightOption[] {
   });
 }
 
+const GROUND_TRANSPORT: GroundTransportOption[] = [
+  // New York
+  { id: "gt-nyc-1", type: "Black Car", provider: "Carey Limousine", pickup: "JFK International Airport", dropoff: "Midtown Manhattan", estimatedMinutes: 55, estimatedPriceUSD: 185, phone: "1-800-336-4646", notes: "Reserve 24hrs ahead. Ask for executive sedan." },
+  { id: "gt-nyc-2", type: "Airport Transfer", provider: "Carmel Car & Limousine", pickup: "EWR / LGA / JFK", dropoff: "Any Manhattan address", estimatedMinutes: 60, estimatedPriceUSD: 95, phone: "212-666-6666", notes: "Flat rate from all NYC-area airports." },
+  { id: "gt-nyc-3", type: "Rail", provider: "AirTrain + LIRR / Subway", pickup: "JFK Terminal", dropoff: "Penn Station / Midtown", estimatedMinutes: 55, estimatedPriceUSD: 12, phone: null, notes: "Fastest option during rush hour. AirTrain to Jamaica, then LIRR." },
+
+  // Washington DC
+  { id: "gt-dc-1", type: "Black Car", provider: "EmpireCLS Washington DC", pickup: "DCA / IAD / BWI", dropoff: "Georgetown / Downtown DC", estimatedMinutes: 35, estimatedPriceUSD: 140, phone: "202-488-1000", notes: "Reserve 4hrs ahead. DCA is closest to Georgetown (~20 min)." },
+  { id: "gt-dc-2", type: "Rail", provider: "DC Metro (Blue/Yellow Line)", pickup: "DCA (Reagan National)", dropoff: "Foggy Bottom / Downtown", estimatedMinutes: 22, estimatedPriceUSD: 3, phone: null, notes: "Metro directly from DCA. Blue or Yellow Line. Fastest from DCA." },
+
+  // Philadelphia
+  { id: "gt-phl-1", type: "Black Car", provider: "Executive Transportation PHL", pickup: "PHL International Airport", dropoff: "University City / Center City", estimatedMinutes: 30, estimatedPriceUSD: 85, phone: "215-545-5555", notes: "30 min to The Study at Penn. Reserve ahead." },
+  { id: "gt-phl-2", type: "Rail", provider: "SEPTA Airport Line", pickup: "PHL Terminal A/B/C/D/E", dropoff: "30th Street Station (University City)", estimatedMinutes: 25, estimatedPriceUSD: 7, phone: null, notes: "Direct to 30th Street Station — one stop from The Study." },
+  { id: "gt-phl-3", type: "Car Rental", provider: "Hertz / Avis at PHL", pickup: "PHL Rental Center", dropoff: "Self-drive", estimatedMinutes: 15, estimatedPriceUSD: 75, phone: null, notes: "Easy access to Princeton from PHL via I-95 / NJ Turnpike (~1hr)." },
+
+  // Princeton
+  { id: "gt-princeton-1", type: "Car Rental", provider: "Enterprise Princeton", pickup: "Princeton, NJ", dropoff: "Self-drive", estimatedMinutes: 10, estimatedPriceUSD: 65, phone: "609-924-3900", notes: "Convenient for driving Newport → Princeton → Newport." },
+  { id: "gt-princeton-2", type: "Rail", provider: "NJ Transit (Princeton Junction)", pickup: "Princeton Junction Station", dropoff: "New York Penn Station", estimatedMinutes: 75, estimatedPriceUSD: 18, phone: null, notes: "Take Dinky shuttle to Princeton Junction, then Northeast Corridor to NYC." },
+
+  // Boston
+  { id: "gt-bos-1", type: "Black Car", provider: "Commonwealth Worldwide", pickup: "BOS Logan Airport", dropoff: "Back Bay / Downtown Boston", estimatedMinutes: 30, estimatedPriceUSD: 120, phone: "617-787-3400", notes: "Reserve 24hrs ahead. Flat rate to Back Bay hotels." },
+  { id: "gt-bos-2", type: "Rail", provider: "MBTA Silver Line SL1", pickup: "BOS Logan All Terminals", dropoff: "South Station (Downtown)", estimatedMinutes: 25, estimatedPriceUSD: 3, phone: null, notes: "Free from terminals to South Station. Connect to Red Line for Cambridge." },
+
+  // Newport
+  { id: "gt-newport-1", type: "Car Rental", provider: "Enterprise / Hertz at PVD", pickup: "Providence TF Green Airport", dropoff: "Newport, RI (~30 min)", estimatedMinutes: 30, estimatedPriceUSD: 70, phone: null, notes: "Best option from PVD. Newport has no direct transit." },
+  { id: "gt-newport-2", type: "Taxi / Rideshare", provider: "Newport Cab / Uber", pickup: "Newport anywhere", dropoff: "Providence / TF Green Airport", estimatedMinutes: 35, estimatedPriceUSD: 55, phone: "401-846-2500", notes: "Newport Cab available 24/7. Uber coverage is lighter than major cities." },
+
+  // Austin
+  { id: "gt-aus-1", type: "Black Car", provider: "Austin Black Car", pickup: "AUS Austin-Bergstrom Airport", dropoff: "Downtown / South Congress", estimatedMinutes: 25, estimatedPriceUSD: 75, phone: "512-452-6161", notes: "No rail from AUS. Black car or rideshare only." },
+
+  // San Antonio
+  { id: "gt-sat-1", type: "Black Car", provider: "San Antonio Limousine", pickup: "SAT San Antonio Airport", dropoff: "Downtown / Pearl District", estimatedMinutes: 20, estimatedPriceUSD: 65, phone: "210-733-6699", notes: "20 min to Hotel Emma in Pearl District." },
+
+  // London
+  { id: "gt-lhr-1", type: "Black Car", provider: "Addison Lee", pickup: "LHR Heathrow", dropoff: "Mayfair / Central London", estimatedMinutes: 60, estimatedPriceUSD: 110, phone: "+44-207-407-9000", notes: "Book via app or phone. Best for luggage. M4 can be slow." },
+  { id: "gt-lhr-2", type: "Rail", provider: "Heathrow Express", pickup: "LHR Terminals 2/3/5", dropoff: "Paddington Station", estimatedMinutes: 15, estimatedPriceUSD: 35, phone: null, notes: "Fastest option LHR → Central London. Then taxi/tube to Mayfair." },
+];
+
+const GROUND_TRANSPORT_ALIASES: Record<string, string[]> = {
+  "new york": ["nyc", "new york", "manhattan", "jfk", "lga", "ewr"],
+  "nyc": ["nyc", "new york", "manhattan", "jfk", "lga", "ewr"],
+  "washington": ["dc", "washington", "georgetown", "dca", "iad"],
+  "philadelphia": ["philadelphia", "phl", "philly"],
+  "princeton": ["princeton"],
+  "boston": ["boston", "bos", "cambridge"],
+  "newport": ["newport", "pvd", "providence"],
+  "austin": ["austin", "aus"],
+  "san antonio": ["san antonio", "sat"],
+  "london": ["london", "lhr", "lgw"],
+};
+
+function findGroundTransport(destination: string): GroundTransportOption[] {
+  const key = normalizeCityKey(destination);
+  const aliases = GROUND_TRANSPORT_ALIASES[key] ?? [key];
+  return GROUND_TRANSPORT.filter((g) => {
+    const combined = (g.pickup + " " + g.dropoff + " " + g.provider + " " + (g.notes ?? "")).toLowerCase();
+    return aliases.some((a) => combined.includes(a));
+  });
+}
+
 function findHotels(destination: string): { hotels: HotelOption[]; key: string } {
   const key = normalizeCityKey(destination);
   const matches = HOTELS.filter((h) => h.cityKey === key);
@@ -147,12 +222,25 @@ function findHotels(destination: string): { hotels: HotelOption[]; key: string }
 }
 
 export async function searchTravel(q: TravelQuery): Promise<TravelResults> {
-  // Simulated latency; swap for real API call later.
   await new Promise((r) => setTimeout(r, 550));
   const { hotels, key } = findHotels(q.destination);
+  let flights = generateFlights(q);
+
+  // Apply stops filter
+  if (q.stops === "nonstop") {
+    flights = flights.filter((f) => f.stops === 0);
+  } else if (q.stops === "1-stop") {
+    flights = flights.filter((f) => f.stops === 1);
+  } else if (q.stops === "2+") {
+    flights = flights.filter((f) => f.stops >= 2);
+  }
+
+  const groundTransport = findGroundTransport(q.destination);
+
   return {
-    flights: generateFlights(q),
+    flights,
     hotels,
+    groundTransport,
     destinationKey: key,
   };
 }

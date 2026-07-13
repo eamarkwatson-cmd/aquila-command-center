@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Copy, Bookmark, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,13 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
   const [activeCats, setActiveCats] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
 
+  // FIX: sync internal location state when prop loads asynchronously from Supabase
+  useEffect(() => {
+    if (savedLocation && !location) {
+      setLocation(savedLocation);
+    }
+  }, [savedLocation]);
+
   const normalized = useMemo(() => normalizeLocation(location), [location]);
   const tokens = useMemo(() => expandTokens(normalized), [normalized]);
 
@@ -84,10 +91,39 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
     },
   });
 
+  // Server-side filtered recs as primary source when a location is set
+  const { data: serverRecs = [] } = useQuery<Rec[]>({
+    queryKey: ["city-recs-search", normalized],
+    enabled: !!normalized,
+    queryFn: async () => {
+      if (!normalized) return [];
+      // Fan out tokens into an OR filter across all text fields
+      const searchTokens = expandTokens(normalized);
+      const orClauses = searchTokens.flatMap((t) => [
+        `city.ilike.%${t}%`,
+        `region.ilike.%${t}%`,
+        `name.ilike.%${t}%`,
+        `address.ilike.%${t}%`,
+        `detail.ilike.%${t}%`,
+        `best_for.ilike.%${t}%`,
+        `category.ilike.%${t}%`,
+      ]);
+      const { data, error } = await supabase
+        .from("city_recommendations")
+        .select("*")
+        .or(orClauses.join(","))
+        .order("city");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Prefer server-filtered recs; fall back to client-side filter of all recs
   const recs = useMemo(() => {
     if (!normalized) return [];
+    if (serverRecs.length > 0) return serverRecs;
     return allRecs.filter((r) => matchesRec(r, tokens));
-  }, [allRecs, normalized, tokens]);
+  }, [serverRecs, allRecs, normalized, tokens]);
 
   const { data: planned = [] } = useQuery({
     queryKey: ["planned-items"],
@@ -209,8 +245,9 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
               <div>raw: <span className="text-muted-foreground">{JSON.stringify(location)}</span></div>
               <div>normalized: <span className="text-muted-foreground">{JSON.stringify(normalized)}</span></div>
               <div>tokens: <span className="text-muted-foreground">{JSON.stringify(tokens)}</span></div>
-              <div>rows in table: <span className="text-muted-foreground">{allRecs.length}</span></div>
-              <div>rows after filter: <span className="text-muted-foreground">0</span></div>
+              <div>rows in table (all): <span className="text-muted-foreground">{allRecs.length}</span></div>
+              <div>rows from server search: <span className="text-muted-foreground">{serverRecs.length}</span></div>
+              <div>rows after client filter: <span className="text-muted-foreground">0</span></div>
             </div>
           )}
         </div>

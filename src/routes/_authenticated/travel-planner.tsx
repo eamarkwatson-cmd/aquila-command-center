@@ -1,16 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plane, Hotel, Search, Copy, MapPin, Loader2, RotateCcw, Star } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Plane, Hotel, Search, Copy, MapPin, Loader2, RotateCcw, Star, Car, MapPinned, Phone } from "lucide-react";
 import { toast } from "sonner";
 import {
-  searchTravel, formatFlightForClipboard,
-  type TravelResults, type FlightOption, type HotelOption,
+  searchTravel, formatFlightForClipboard, normalizeCityKey,
+  type TravelResults, type FlightOption, type HotelOption, type GroundTransportOption,
 } from "@/services/travelPlannerService";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/travel-planner")({
   component: TravelPlannerPage,
 });
+
+type Tab = "flights" | "hotels" | "ground" | "marksweek";
+
+type MarksWeekRec = {
+  id: string; city: string; region: string | null; category: string;
+  name: string; address: string | null; phone: string | null;
+  booking_url: string | null; detail: string | null; best_for: string | null;
+};
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -28,10 +38,37 @@ function TravelPlannerPage() {
   const [destination, setDestination] = useState("");
   const [departDate, setDepartDate] = useState(today);
   const [returnDate, setReturnDate] = useState(inAWeek);
-  const [tab, setTab] = useState<"flights" | "hotels">("flights");
+  const [tripType, setTripType] = useState<"one-way" | "round-trip">("one-way");
+  const [stops, setStops] = useState<"any" | "nonstop" | "1-stop" | "2+">("any");
+  const [tab, setTab] = useState<Tab>("flights");
   const [results, setResults] = useState<TravelResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchedDestination, setSearchedDestination] = useState("");
+
+  // Mark's Week recs for the destination city
+  const destKey = normalizeCityKey(searchedDestination);
+  const { data: marksWeekRecs = [], isLoading: loadingRecs } = useQuery<MarksWeekRec[]>({
+    queryKey: ["travel-marksweek", destKey],
+    enabled: !!destKey && !!results,
+    queryFn: async () => {
+      const orClauses = [
+        `city.ilike.%${destKey}%`,
+        `region.ilike.%${destKey}%`,
+      ];
+      // Also add the raw destination string
+      if (searchedDestination.toLowerCase() !== destKey) {
+        orClauses.push(`city.ilike.%${searchedDestination.toLowerCase()}%`);
+      }
+      const { data, error } = await supabase
+        .from("city_recommendations")
+        .select("*")
+        .or(orClauses.join(","))
+        .order("category");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   async function onSearch() {
     if (!origin.trim() || !destination.trim()) {
@@ -40,8 +77,16 @@ function TravelPlannerPage() {
     }
     setLoading(true); setError(null);
     try {
-      const r = await searchTravel({ origin: origin.trim(), destination: destination.trim(), departDate, returnDate });
+      const r = await searchTravel({
+        origin: origin.trim(),
+        destination: destination.trim(),
+        departDate,
+        returnDate,
+        tripType,
+        stops,
+      });
       setResults(r);
+      setSearchedDestination(destination.trim());
     } catch (e: any) {
       setError(e?.message ?? "Search failed");
     } finally { setLoading(false); }
@@ -49,43 +94,77 @@ function TravelPlannerPage() {
 
   function onReset() {
     setOrigin(""); setDestination(""); setDepartDate(today); setReturnDate(inAWeek);
-    setResults(null); setError(null);
+    setTripType("one-way"); setStops("any");
+    setResults(null); setError(null); setSearchedDestination("");
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-foreground">Travel Planner</h2>
-        <p className="text-sm text-muted-foreground">Search flights and premium hotels for Mark's next trip.</p>
+        <p className="text-sm text-muted-foreground">Search flights, hotels, and ground transport for Mark's next trip.</p>
       </div>
 
       {/* Search panel */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* Trip type + stops row */}
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Trip Type</div>
+            <div className="flex rounded-md border border-border overflow-hidden">
+              <button onClick={() => setTripType("one-way")}
+                className={cn("px-3 py-1.5 text-xs font-medium transition",
+                  tripType === "one-way" ? "bg-navy text-white" : "bg-background text-muted-foreground hover:bg-muted")}>
+                One-way
+              </button>
+              <button onClick={() => setTripType("round-trip")}
+                className={cn("px-3 py-1.5 text-xs font-medium border-l border-border transition",
+                  tripType === "round-trip" ? "bg-navy text-white" : "bg-background text-muted-foreground hover:bg-muted")}>
+                Round-trip
+              </button>
+            </div>
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Stops</div>
+            <select value={stops} onChange={(e) => setStops(e.target.value as any)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:border-navy">
+              <option value="any">Any</option>
+              <option value="nonstop">Nonstop</option>
+              <option value="1-stop">1 Stop</option>
+              <option value="2+">2+ Stops</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Search fields */}
+        <div className={cn("grid grid-cols-1 gap-4", tripType === "round-trip" ? "md:grid-cols-4" : "md:grid-cols-3")}>
           <Field label="Origin (city or airport)">
             <input value={origin} onChange={(e) => setOrigin(e.target.value)}
-              placeholder="Austin (AUS)"
+              placeholder="Providence (PVD)"
               className="input" />
           </Field>
           <Field label="Destination (city or airport)">
             <input value={destination} onChange={(e) => setDestination(e.target.value)}
-              placeholder="New York (JFK)"
+              placeholder="Philadelphia (PHL)"
               className="input" />
           </Field>
           <Field label="Departure">
             <input type="date" value={departDate} onChange={(e) => setDepartDate(e.target.value)}
               className="input" />
           </Field>
-          <Field label="Return">
-            <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)}
-              className="input" />
-          </Field>
+          {tripType === "round-trip" && (
+            <Field label="Return">
+              <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)}
+                className="input" />
+            </Field>
+          )}
         </div>
+
         <div className="mt-4 flex items-center gap-2">
           <button onClick={onSearch} disabled={loading}
             className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Search Flights & Hotels
+            Search
           </button>
           <button onClick={onReset}
             className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:bg-muted">
@@ -98,14 +177,21 @@ function TravelPlannerPage() {
       {/* Results */}
       {results && (
         <div className="rounded-lg border border-border bg-card shadow-sm">
-          <div className="flex items-center gap-1 border-b border-border px-4 pt-3">
+          <div className="flex flex-wrap items-center gap-1 border-b border-border px-4 pt-3">
             <TabButton active={tab === "flights"} onClick={() => setTab("flights")}
-              icon={<Plane className="h-4 w-4" />} label={`Available Flights (${results.flights.length})`} />
+              icon={<Plane className="h-4 w-4" />} label={`Flights (${results.flights.length})`} />
             <TabButton active={tab === "hotels"} onClick={() => setTab("hotels")}
-              icon={<Hotel className="h-4 w-4" />} label={`Hotels in ${destination || "destination"} (${results.hotels.length})`} />
+              icon={<Hotel className="h-4 w-4" />} label={`Hotels (${results.hotels.length})`} />
+            <TabButton active={tab === "ground"} onClick={() => setTab("ground")}
+              icon={<Car className="h-4 w-4" />} label={`Ground (${results.groundTransport.length})`} />
+            <TabButton active={tab === "marksweek"} onClick={() => setTab("marksweek")}
+              icon={<MapPinned className="h-4 w-4" />} label={`Mark's Week (${marksWeekRecs.length})`} />
           </div>
           <div className="p-4">
-            {tab === "flights" ? <FlightList flights={results.flights} /> : <HotelGrid hotels={results.hotels} destination={destination} />}
+            {tab === "flights" && <FlightList flights={results.flights} />}
+            {tab === "hotels" && <HotelGrid hotels={results.hotels} destination={searchedDestination} />}
+            {tab === "ground" && <GroundTransportList items={results.groundTransport} destination={searchedDestination} />}
+            {tab === "marksweek" && <MarksWeekList recs={marksWeekRecs} destination={searchedDestination} loading={loadingRecs} />}
           </div>
         </div>
       )}
@@ -139,7 +225,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function FlightList({ flights }: { flights: FlightOption[] }) {
   if (flights.length === 0) {
-    return <EmptyState icon={<Plane className="h-6 w-6" />} title="No flights found" hint="Try a different date or route." />;
+    return <EmptyState icon={<Plane className="h-6 w-6" />} title="No flights found" hint="Try changing the stops filter or a different date." />;
   }
   async function copy(f: FlightOption) {
     await navigator.clipboard.writeText(formatFlightForClipboard(f));
@@ -226,6 +312,134 @@ function HotelGrid({ hotels, destination }: { hotels: HotelOption[]; destination
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-muted">
               <MapPin className="h-3 w-3" /> View Map
             </a>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GroundTransportList({ items, destination }: { items: GroundTransportOption[]; destination: string }) {
+  if (items.length === 0) {
+    return <EmptyState icon={<Car className="h-6 w-6" />}
+      title={`No ground transport data for "${destination}" yet`}
+      hint="Currently covering: New York, Washington DC, Philadelphia, Princeton, Boston, Newport, Austin, San Antonio, London." />;
+  }
+
+  async function copy(item: GroundTransportOption) {
+    const text = [
+      `${item.type} — ${item.provider}`,
+      `${item.pickup} → ${item.dropoff}`,
+      `~${item.estimatedMinutes} min`,
+      item.estimatedPriceUSD ? `Est. $${item.estimatedPriceUSD}` : "",
+      item.phone ? `Phone: ${item.phone}` : "",
+      item.notes ?? "",
+    ].filter(Boolean).join("\n");
+    await navigator.clipboard.writeText(text);
+    toast.success("Details copied");
+  }
+
+  const byType = items.reduce((acc, item) => {
+    if (!acc[item.type]) acc[item.type] = [];
+    acc[item.type].push(item);
+    return acc;
+  }, {} as Record<string, GroundTransportOption[]>);
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(byType).map(([type, group]) => (
+        <div key={type}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{type}</div>
+          <div className="space-y-2">
+            {group.map((item) => (
+              <div key={item.id} className="rounded-md border border-border bg-background p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-foreground">{item.provider}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{item.pickup} → {item.dropoff}</div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                      <span className="text-navy font-medium">~{item.estimatedMinutes} min</span>
+                      {item.estimatedPriceUSD && <span className="text-gold font-medium">~${item.estimatedPriceUSD}</span>}
+                      {item.phone && (
+                        <a href={`tel:${item.phone}`} className="flex items-center gap-1 text-muted-foreground hover:text-navy">
+                          <Phone className="h-3 w-3" /> {item.phone}
+                        </a>
+                      )}
+                    </div>
+                    {item.notes && <div className="mt-1.5 text-xs text-muted-foreground">{item.notes}</div>}
+                  </div>
+                  <button onClick={() => copy(item)}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-muted">
+                    <Copy className="h-3 w-3" /> Copy
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MarksWeekList({ recs, destination, loading }: { recs: MarksWeekRec[]; destination: string; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (recs.length === 0) {
+    return <EmptyState icon={<MapPinned className="h-6 w-6" />}
+      title={`No curated recommendations for "${destination}" yet`}
+      hint="Seeded cities: Newport · Washington DC · Austin · San Antonio · Boston · New York · Geneva · London · Paris." />;
+  }
+
+  async function copy(rec: MarksWeekRec) {
+    const text = [rec.name, rec.address, rec.phone, rec.booking_url, rec.detail]
+      .filter(Boolean).join("\n");
+    await navigator.clipboard.writeText(text);
+    toast.success("Copied");
+  }
+
+  const byCategory = recs.reduce((acc, r) => {
+    if (!acc[r.category]) acc[r.category] = [];
+    acc[r.category].push(r);
+    return acc;
+  }, {} as Record<string, MarksWeekRec[]>);
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(byCategory).map(([cat, group]) => (
+        <div key={cat}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</div>
+          <div className="space-y-2">
+            {group.map((rec) => (
+              <div key={rec.id} className="rounded-md border border-border bg-background p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">{rec.name}</div>
+                    {rec.address && <div className="text-xs text-muted-foreground mt-0.5">{rec.address}</div>}
+                    {rec.phone && <div className="text-xs text-muted-foreground">{rec.phone}</div>}
+                    {rec.detail && <div className="text-xs text-muted-foreground mt-1">{rec.detail}</div>}
+                    {rec.best_for && <div className="text-xs text-navy mt-1">Best for: {rec.best_for}</div>}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {rec.booking_url && (
+                      <a href={rec.booking_url} target="_blank" rel="noreferrer"
+                        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-navy" title="Book it">
+                        <MapPin className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    <button onClick={() => copy(rec)} title="Copy details"
+                      className="rounded p-1.5 text-muted-foreground hover:bg-muted">
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ))}
