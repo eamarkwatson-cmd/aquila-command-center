@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Linkedin, ListChecks, Briefcase,
-  Inbox, Calendar, Settings, LogOut, AlertTriangle, BarChart2,
+  Inbox, Calendar, Settings, LogOut, AlertTriangle, BarChart2, Plane,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/pipeline", label: "LinkedIn Pipeline", icon: Linkedin },
   { to: "/delegations", label: "Delegations", icon: ListChecks },
+  { to: "/travel-planner", label: "Travel Planner", icon: Plane },
   { to: "/investments", label: "Investments", icon: Briefcase },
   { to: "/inbox", label: "Inbox Highlights", icon: Inbox },
   { to: "/calendar", label: "Calendar", icon: Calendar },

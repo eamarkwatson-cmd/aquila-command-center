@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Copy, Bookmark, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,11 +11,54 @@ type Rec = {
   booking_url: string | null; detail: string | null; best_for: string | null;
 };
 
-const ALL_CATEGORIES = [
-  "Golf", "Tennis", "Sailing / Yacht Racing", "Dinner / Client Dinner",
-  "Hotel / Meeting Base", "Fitness / Wellness", "Coffee / Breakfast",
-  "Culture / Free Time", "Airport / Logistics", "Flying / Aviation",
-];
+// Alias map: any of these tokens should include the value tokens when searching.
+const LOCATION_ALIASES: Record<string, string[]> = {
+  "dc": ["washington", "georgetown", "dc"],
+  "washington": ["washington", "georgetown", "dc"],
+  "washington dc": ["washington", "georgetown", "dc"],
+  "georgetown": ["washington", "georgetown", "dc"],
+  "nyc": ["new york", "nyc", "manhattan"],
+  "new york": ["new york", "nyc", "manhattan"],
+  "manhattan": ["new york", "nyc", "manhattan"],
+  "boston": ["boston", "cambridge", "massachusetts"],
+  "cambridge": ["boston", "cambridge", "massachusetts"],
+  "newport": ["newport", "rhode island"],
+  "rhode island": ["newport", "rhode island", "providence"],
+  "providence": ["newport", "rhode island", "providence"],
+  "austin": ["austin", "texas"],
+  "san antonio": ["san antonio", "texas"],
+  "london": ["london", "mayfair", "united kingdom"],
+  "paris": ["paris", "france"],
+  "geneva": ["geneva", "switzerland"],
+};
+
+function normalizeLocation(input: string): string {
+  return input.toLowerCase().replace(/[.,/()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function expandTokens(normalized: string): string[] {
+  if (!normalized) return [];
+  const tokens = new Set<string>([normalized]);
+  // whole-string alias
+  if (LOCATION_ALIASES[normalized]) {
+    LOCATION_ALIASES[normalized].forEach((t) => tokens.add(t));
+  }
+  // per-word aliases + raw words > 2 chars
+  for (const word of normalized.split(" ")) {
+    if (word.length > 2) tokens.add(word);
+    if (LOCATION_ALIASES[word]) {
+      LOCATION_ALIASES[word].forEach((t) => tokens.add(t));
+    }
+  }
+  return [...tokens];
+}
+
+function matchesRec(rec: Rec, tokens: string[]): boolean {
+  const haystack = [
+    rec.city, rec.region, rec.name, rec.address, rec.detail, rec.best_for, rec.category,
+  ].map((v) => (v ?? "").toLowerCase()).join(" | ");
+  return tokens.some((t) => t && haystack.includes(t));
+}
 
 export function MarksWeek({ savedLocation, onSaveLocation }: {
   savedLocation: string;
@@ -24,30 +67,27 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
   const qc = useQueryClient();
   const [location, setLocation] = useState(savedLocation);
   const [activeCats, setActiveCats] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
 
-  const { data: recs = [] } = useQuery<Rec[]>({
-    queryKey: ["city-recs", location],
+  const normalized = useMemo(() => normalizeLocation(location), [location]);
+  const tokens = useMemo(() => expandTokens(normalized), [normalized]);
+
+  const { data: allRecs = [], isLoading } = useQuery<Rec[]>({
+    queryKey: ["city-recs-all"],
     queryFn: async () => {
-      if (!location.trim()) return [];
-      // Normalise query and split into tokens so "Washington DC" matches "Washington"
-      const q = location.trim().toLowerCase();
-      const tokens = [...new Set([q, ...q.split(/[\s,/]+/).filter((t) => t.length > 2)])];
-
       const { data, error } = await supabase
         .from("city_recommendations")
         .select("*")
-        .order("category");
+        .order("city");
       if (error) throw error;
-
-      return (data ?? []).filter((r: Rec) => {
-        const haystack = [
-          r.city, r.region, r.name, r.address, r.detail, r.best_for,
-        ].map((v) => (v ?? "").toLowerCase()).join(" ");
-        return tokens.some((t) => haystack.includes(t));
-      });
+      return data ?? [];
     },
-    enabled: !!location.trim(),
   });
+
+  const recs = useMemo(() => {
+    if (!normalized) return [];
+    return allRecs.filter((r) => matchesRec(r, tokens));
+  }, [allRecs, normalized, tokens]);
 
   const { data: planned = [] } = useQuery({
     queryKey: ["planned-items"],
@@ -68,29 +108,29 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
     );
   }
 
-  async function saveLocation(val: string) {
-    onSaveLocation(val);
-    if (val.trim()) {
+  async function logActivity(action: string, details: Record<string, unknown>) {
+    try {
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from("activity_log").insert({
-        entity_type: "city_recommendation", action: "location_set",
-        performed_by: user?.email ?? null, details: { location: val } as any,
-      }).catch(() => {});
-    }
+        entity_type: "city_recommendation",
+        action,
+        performed_by: user?.email ?? null,
+        details: details as any,
+      });
+    } catch { /* non-fatal */ }
+  }
+
+  async function saveLocation(val: string) {
+    onSaveLocation(val);
+    if (val.trim()) await logActivity("location_set", { location: val });
   }
 
   async function copyDetails(rec: Rec) {
-    const text = [
-      rec.name, rec.address, rec.phone,
-      rec.booking_url, rec.detail,
-    ].filter(Boolean).join("\n");
+    const text = [rec.name, rec.address, rec.phone, rec.booking_url, rec.detail]
+      .filter(Boolean).join("\n");
     await navigator.clipboard.writeText(text);
     toast.success("Copied");
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("activity_log").insert({
-      entity_type: "city_recommendation", action: "copied_details",
-      entity_title: rec.name, performed_by: user?.email ?? null, details: { city: rec.city } as any,
-    }).catch(() => {});
+    await logActivity("copied_details", { name: rec.name, city: rec.city });
   }
 
   async function saveToPlan(rec: Rec) {
@@ -101,16 +141,12 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
     });
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["planned-items"] });
-    await supabase.from("activity_log").insert({
-      entity_type: "city_recommendation", action: "saved_to_plan",
-      entity_title: rec.name, performed_by: user?.email ?? null, details: { city: rec.city } as any,
-    }).catch(() => {});
+    await logActivity("saved_to_plan", { name: rec.name, city: rec.city });
     toast.success("Saved to plan ✓");
   }
 
   return (
     <div className="space-y-4">
-      {/* Location input */}
       <div className="flex items-center gap-3">
         <label className="text-xs font-medium text-muted-foreground w-16 shrink-0">Location</label>
         <input
@@ -118,7 +154,7 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           onBlur={(e) => saveLocation(e.target.value)}
-          placeholder="Newport, Austin, London, Geneva…"
+          placeholder="Newport, Washington DC, Austin, New York, London…"
           className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-navy"
         />
         {location && (
@@ -129,7 +165,6 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
         )}
       </div>
 
-      {/* Category chips */}
       {availableCats.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {availableCats.map((cat) => (
@@ -152,20 +187,33 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
         </div>
       )}
 
-      {/* Recommendations */}
-      {location.trim() && recs.length === 0 && (
-        <div className="rounded-md border border-border bg-muted/30 px-4 py-4 text-sm">
-          <div className="font-medium text-foreground mb-1">No results for "{location}"</div>
-          <p className="text-muted-foreground">Searched city, region, name, address, and notes.</p>
-          <p className="text-muted-foreground mt-1">Cities in the playbook: Newport · Washington DC / Georgetown · Austin · San Antonio · Boston / Cambridge · New York · Geneva · London · Paris.</p>
-          <p className="text-xs text-muted-foreground mt-1">To add this city, insert rows into the city_recommendations table in Supabase.</p>
-        </div>
-      )}
-
       {!location.trim() && (
         <p className="text-sm text-muted-foreground">
           Type Mark's location to see curated activity and dining suggestions.
         </p>
+      )}
+
+      {location.trim() && !isLoading && recs.length === 0 && (
+        <div className="rounded-md border border-border bg-muted/30 px-4 py-4 text-sm space-y-1">
+          <div className="font-medium text-foreground">No matches for "{location}"</div>
+          <p className="text-muted-foreground">
+            Seeded cities: Newport · Washington DC / Georgetown · Austin · San Antonio ·
+            Boston / Cambridge · New York · Geneva · London · Paris.
+          </p>
+          <button onClick={() => setShowDebug((v) => !v)}
+            className="text-xs text-navy underline underline-offset-2">
+            {showDebug ? "Hide" : "Show"} debug
+          </button>
+          {showDebug && (
+            <div className="mt-2 rounded bg-background border border-border p-2 text-xs font-mono space-y-0.5">
+              <div>raw: <span className="text-muted-foreground">{JSON.stringify(location)}</span></div>
+              <div>normalized: <span className="text-muted-foreground">{JSON.stringify(normalized)}</span></div>
+              <div>tokens: <span className="text-muted-foreground">{JSON.stringify(tokens)}</span></div>
+              <div>rows in table: <span className="text-muted-foreground">{allRecs.length}</span></div>
+              <div>rows after filter: <span className="text-muted-foreground">0</span></div>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="space-y-2">
@@ -178,6 +226,7 @@ export function MarksWeek({ savedLocation, onSaveLocation }: {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-foreground">{rec.name}</span>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{rec.category}</span>
+                    <span className="text-[10px] text-muted-foreground">{rec.city}</span>
                   </div>
                   {rec.address && <div className="text-xs text-muted-foreground mt-0.5">{rec.address}</div>}
                   {rec.phone && <div className="text-xs text-muted-foreground">{rec.phone}</div>}

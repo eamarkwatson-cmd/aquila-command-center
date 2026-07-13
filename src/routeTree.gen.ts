@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedWeeklyRouteImport } from './routes/_authenticated/weekly'
+import { Route as AuthenticatedTravelPlannerRouteImport } from './routes/_authenticated/travel-planner'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedInvestmentsRouteImport } from './routes/_authenticated/investments'
@@ -50,6 +51,12 @@ const AuthenticatedWeeklyRoute = AuthenticatedWeeklyRouteImport.update({
   path: '/weekly',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTravelPlannerRoute =
+  AuthenticatedTravelPlannerRouteImport.update({
+    id: '/travel-planner',
+    path: '/travel-planner',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -123,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/investments': typeof AuthenticatedInvestmentsRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -139,6 +147,7 @@ export interface FileRoutesByTo {
   '/investments': typeof AuthenticatedInvestmentsRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -158,6 +167,7 @@ export interface FileRoutesById {
   '/_authenticated/investments': typeof AuthenticatedInvestmentsRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/_authenticated/weekly': typeof AuthenticatedWeeklyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/pipeline'
     | '/settings'
+    | '/travel-planner'
     | '/weekly'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/pipeline'
     | '/settings'
+    | '/travel-planner'
     | '/weekly'
     | '/'
     | '/.lovable/oauth/consent'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/_authenticated/investments'
     | '/_authenticated/pipeline'
     | '/_authenticated/settings'
+    | '/_authenticated/travel-planner'
     | '/_authenticated/weekly'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       path: '/weekly'
       fullPath: '/weekly'
       preLoaderRoute: typeof AuthenticatedWeeklyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/travel-planner': {
+      id: '/_authenticated/travel-planner'
+      path: '/travel-planner'
+      fullPath: '/travel-planner'
+      preLoaderRoute: typeof AuthenticatedTravelPlannerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -353,6 +373,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInvestmentsRoute: typeof AuthenticatedInvestmentsRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTravelPlannerRoute: typeof AuthenticatedTravelPlannerRoute
   AuthenticatedWeeklyRoute: typeof AuthenticatedWeeklyRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -364,6 +385,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInvestmentsRoute: AuthenticatedInvestmentsRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTravelPlannerRoute: AuthenticatedTravelPlannerRoute,
   AuthenticatedWeeklyRoute: AuthenticatedWeeklyRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
