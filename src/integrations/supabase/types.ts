@@ -62,6 +62,51 @@ export type Database = {
         }
         Relationships: []
       }
+      city_recommendations: {
+        Row: {
+          address: string | null
+          best_for: string | null
+          booking_url: string | null
+          category: string
+          city: string
+          created_at: string
+          detail: string | null
+          id: string
+          name: string
+          phone: string | null
+          region: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          best_for?: string | null
+          booking_url?: string | null
+          category: string
+          city: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          best_for?: string | null
+          booking_url?: string | null
+          category?: string
+          city?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       delegations: {
         Row: {
           completed_at: string | null
@@ -289,6 +334,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      planned_items: {
+        Row: {
+          city: string | null
+          created_at: string
+          created_by: string | null
+          detail: string | null
+          id: string
+          label: string
+          recommendation_id: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          detail?: string | null
+          id?: string
+          label: string
+          recommendation_id?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          detail?: string | null
+          id?: string
+          label?: string
+          recommendation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_items_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "city_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
