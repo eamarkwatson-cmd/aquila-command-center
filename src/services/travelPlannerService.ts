@@ -70,6 +70,8 @@ export function normalizeCityKey(v: string): string {
     "lax": "los angeles",
     "mia": "miami",
     "pvd": "newport", "providence": "newport",
+    "philadelphia": "philadelphia", "phl": "philadelphia", "philly": "philadelphia",
+    "princeton": "princeton", "princeton nj": "princeton",
   };
   if (aliases[s]) return aliases[s];
   for (const word of s.split(" ")) if (aliases[word]) return aliases[word];
@@ -106,7 +108,18 @@ const HOTELS: HotelOption[] = [
 
   { id: "h20", name: "Castle Hill Inn", cityKey: "newport", proximity: "Ocean Drive waterfront", stars: 5, pricePerNightUSD: 995, address: "590 Ocean Dr, Newport, RI" },
   { id: "h21", name: "The Chanler at Cliff Walk", cityKey: "newport", proximity: "Cliff Walk", stars: 5, pricePerNightUSD: 950, address: "117 Memorial Blvd, Newport, RI" },
+
+  // Philadelphia
+  { id: "h22", name: "The Study at University City", cityKey: "philadelphia", proximity: "UPenn campus — University City", stars: 4, pricePerNightUSD: 259, address: "20 S 33rd Street, Philadelphia, PA 19104" },
+  { id: "h23", name: "The Rittenhouse Hotel", cityKey: "philadelphia", proximity: "Rittenhouse Square", stars: 5, pricePerNightUSD: 595, address: "210 W Rittenhouse Sq, Philadelphia, PA 19103" },
+  { id: "h24", name: "Four Seasons Philadelphia", cityKey: "philadelphia", proximity: "Center City — Comcast Tower", stars: 5, pricePerNightUSD: 795, address: "1 N 19th St, Philadelphia, PA 19103" },
+
+  // Princeton
+  { id: "h25", name: "The Peacock Inn", cityKey: "princeton", proximity: "Downtown Princeton — steps from campus", stars: 4, pricePerNightUSD: 377, address: "20 Bayard Lane, Princeton, NJ 08540" },
+  { id: "h26", name: "Hyatt Regency Princeton", cityKey: "princeton", proximity: "Carnegie Center — near Princeton", stars: 4, pricePerNightUSD: 245, address: "102 Carnegie Center, Princeton, NJ 08540" },
 ];
+
+
 
 const AIRLINES: Array<{ code: string; name: string }> = [
   { code: "AA", name: "American Airlines" },
@@ -197,8 +210,8 @@ const GROUND_TRANSPORT_ALIASES: Record<string, string[]> = {
   "new york": ["nyc", "new york", "manhattan", "jfk", "lga", "ewr"],
   "nyc": ["nyc", "new york", "manhattan", "jfk", "lga", "ewr"],
   "washington": ["dc", "washington", "georgetown", "dca", "iad"],
-  "philadelphia": ["philadelphia", "phl", "philly"],
-  "princeton": ["princeton"],
+  "philadelphia": ["philadelphia", "phl", "philly", "university city"],
+  "princeton": ["princeton", "princeton nj"],
   "boston": ["boston", "bos", "cambridge"],
   "newport": ["newport", "pvd", "providence"],
   "austin": ["austin", "aus"],
