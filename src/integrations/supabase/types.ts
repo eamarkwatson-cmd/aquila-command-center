@@ -224,6 +224,38 @@ export type Database = {
         }
         Relationships: []
       }
+      investment_activity: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          investment_id: string
+          note: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          investment_id: string
+          note: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          investment_id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_activity_investment_id_fkey"
+            columns: ["investment_id"]
+            isOneToOne: false
+            referencedRelation: "investments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investments: {
         Row: {
           amount: number | null
