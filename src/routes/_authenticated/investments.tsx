@@ -106,27 +106,23 @@ function InvestmentsPage() {
   const [entityF, setEntityF] = useState("all");
   const [statusF, setStatusF] = useState("all");
   const [categoryF, setCategoryF] = useState("all");
+  const [preset, setPreset] = useState<Preset>("all");
   const [selected, setSelected] = useState<Investment | null>(null);
   const [creating, setCreating] = useState(false);
-  // --- Notion is primary source; Supabase local is true fallback ---
+  const [showPortfolioAI, setShowPortfolioAI] = useState(false);
+
   const {
     data: notionData,
     isLoading: notionLoading,
     error: notionError,
-    refetch: refetchNotion,
-    isFetching: notionFetching,
   } = useQuery({
     queryKey: ["investments-notion"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("notion-list-investments");
       if (error) throw new Error(error.message);
       return data as {
-        investments: Investment[];
-        count: number;
-        sync_status: string;
-        using_fallback_source_id?: boolean;
-        error?: string;
-        fetched_at?: string;
+        investments: Investment[]; count: number; sync_status: string;
+        using_fallback_source_id?: boolean; error?: string; fetched_at?: string;
       };
     },
     retry: 1,
@@ -149,26 +145,40 @@ function InvestmentsPage() {
   const notionEmpty  = !notionFailed && notionData?.sync_status === "empty";
   const notionOk     = !notionFailed && (notionData?.investments?.length ?? 0) > 0;
 
-  // Notion when it returns rows; local only on actual failure
   const investments: Investment[] = notionOk
     ? (notionData!.investments ?? [])
-    : notionFailed
-      ? localInvestments
-      : [];
+    : notionFailed ? localInvestments : [];
 
   const isLoading = notionLoading;
 
   const filtered = useMemo(() => {
     let r = investments;
+    if (preset === "attention") r = r.filter(needsAttention);
+    else if (preset === "past_due") r = r.filter((i) => i.capital_call_status === "Past Due");
+    else if (preset === "pending_docs") r = r.filter((i) => i.docsign_status === "Pending" || i.docsign_status === "Not Sent");
+    else if (preset === "exited") r = r.filter((i) => i.status === "Exited");
     if (search) r = r.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()) || (i.category ?? "").toLowerCase().includes(search.toLowerCase()) || (i.notes ?? "").toLowerCase().includes(search.toLowerCase()));
     if (entityF !== "all") r = r.filter((i) => i.holding_entity === entityF);
     if (statusF !== "all") r = r.filter((i) => i.status === statusF);
     if (categoryF !== "all") r = r.filter((i) => i.category === categoryF);
     return r;
-  }, [investments, search, entityF, statusF, categoryF]);
+  }, [investments, search, entityF, statusF, categoryF, preset]);
 
-  const actionNeeded = investments.filter((i) => i.capital_call_status === "Past Due" || i.docsign_status === "Not Sent" || (i.next_action_due && new Date(i.next_action_due) <= new Date()));
-  const totalCommitted = investments.filter((i) => i.amount_committed && !["TBC","N/A"].includes(i.amount_committed)).reduce((s, i) => s + (parseFloat((i.amount_committed ?? "0").replace(/[$,]/g, "")) || 0), 0);
+  const parseAmount = (a: string | null) => (a && !["TBC","N/A"].includes(a) ? (parseFloat(a.replace(/[$,]/g, "")) || 0) : 0);
+  const totalCommitted = investments.reduce((s, i) => s + parseAmount(i.amount_committed), 0);
+  const activeCount = investments.filter((i) => i.status === "Active").length;
+  const attentionList = investments.filter(needsAttention);
+  const categoryCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    investments.forEach((i) => { const k = i.category ?? "Other"; m.set(k, (m.get(k) ?? 0) + 1); });
+    return Array.from(m, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [investments]);
+  const entityCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    investments.forEach((i) => { const k = shortEntity(i.holding_entity); m.set(k, (m.get(k) ?? 0) + 1); });
+    return Array.from(m, ([name, value]) => ({ name, value }));
+  }, [investments]);
+  const uniqueCategories = categoryCounts.length;
 
   async function remove(id: string) {
     if (!confirm("Delete?")) return;
@@ -178,7 +188,13 @@ function InvestmentsPage() {
     toast.success("Deleted");
   }
 
-  const shortEntity = (e: string | null) => (e ?? "—").replace("Aquila Capital Partners LLC","Aquila").replace("Columbia Private Trust IRA","Columbia IRA").replace("Pacific Premier Trust IRA","PPT IRA");
+  const PRESETS: { key: Preset; label: string; count?: number }[] = [
+    { key: "all", label: "All", count: investments.length },
+    { key: "attention", label: "Needs Attention", count: attentionList.length },
+    { key: "past_due", label: "Past Due", count: investments.filter(i => i.capital_call_status === "Past Due").length },
+    { key: "pending_docs", label: "Pending Docs", count: investments.filter(i => i.docsign_status === "Pending" || i.docsign_status === "Not Sent").length },
+    { key: "exited", label: "Exited", count: investments.filter(i => i.status === "Exited").length },
+  ];
 
   return (
     <div className="space-y-6">
@@ -186,21 +202,68 @@ function InvestmentsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Investments</h1>
           <p className="text-sm text-muted-foreground">
-            {isLoading
-              ? "Loading from Notion…"
-              : notionOk
-              ? `${investments.length} holdings · $${(totalCommitted/1_000_000).toFixed(2)}M · Notion`
-              : notionFailed
-              ? `${localInvestments.length} holdings (local fallback — Notion unavailable)`
-              : notionEmpty
-              ? "Notion returned 0 rows — check integration access"
+            {isLoading ? "Loading from Notion…"
+              : notionOk ? `${investments.length} holdings · $${(totalCommitted/1_000_000).toFixed(2)}M · Notion`
+              : notionFailed ? `${localInvestments.length} holdings (local fallback — Notion unavailable)`
+              : notionEmpty ? "Notion returned 0 rows — check integration access"
               : `${investments.length} holdings`}
           </p>
         </div>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy/90">
-          <Plus className="h-4 w-4" /> Add
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowPortfolioAI(true)} className="inline-flex items-center gap-2 rounded-md border border-gold/50 bg-gold/10 px-3 py-2 text-sm font-medium text-navy hover:bg-gold/20">
+            <Sparkles className="h-4 w-4" /> AI Portfolio Summary
+          </button>
+          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy/90">
+            <Plus className="h-4 w-4" /> Add
+          </button>
+        </div>
       </div>
+
+      {/* Summary dashboard */}
+      {!isLoading && investments.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Total Committed" value={`$${(totalCommitted/1_000_000).toFixed(2)}M`} sub={`${investments.filter(i => parseAmount(i.amount_committed) > 0).length} with amounts`} />
+            <StatCard label="Active Positions" value={String(activeCount)} sub={`of ${investments.length} total`} />
+            <StatCard label="Needs Attention" value={String(attentionList.length)} sub="past due · pending · overdue" tone={attentionList.length > 0 ? "warn" : "ok"} />
+            <StatCard label="Categories" value={String(uniqueCategories)} sub="distinct sectors" />
+          </div>
+          <div className="lg:col-span-2 rounded-lg border border-border bg-card p-4">
+            <h3 className="mb-2 text-sm font-medium text-muted-foreground">Allocation by Category</h3>
+            <div className="h-56">
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={categoryCounts} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                    {categoryCounts.map((_, idx) => <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {categoryCounts.map((c, idx) => (
+                <span key={c.name} className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full" style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }} />
+                  <span className="text-muted-foreground">{c.name} ({c.value})</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h3 className="mb-2 text-sm font-medium text-muted-foreground">By Holding Entity</h3>
+            <div className="h-56">
+              <ResponsiveContainer>
+                <BarChart data={entityCounts} layout="vertical" margin={{ left: 10, right: 10 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#1B3A6B" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sync status */}
       {!notionLoading && notionFailed && (
@@ -217,23 +280,31 @@ function InvestmentsPage() {
           Notion returned 0 investments. Check that the Aquila Dashboard integration has access to the Investments database in Notion.
         </div>
       )}
-      {!notionLoading && notionOk && notionData?.using_fallback_source_id && (
-        <div className="rounded-md border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-          Using default source ID. Set NOTION_INVESTMENTS_SOURCE_ID in Supabase → Edge Functions → Secrets for a custom source.
-        </div>
-      )}
-      {actionNeeded.length > 0 && (
+      {attentionList.length > 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-5 py-3">
-          <div className="flex items-center gap-2 mb-2"><AlertCircle className="h-4 w-4 text-destructive" /><span className="text-sm font-medium text-destructive">{actionNeeded.length} need immediate action</span></div>
+          <div className="flex items-center gap-2 mb-2"><AlertCircle className="h-4 w-4 text-destructive" /><span className="text-sm font-medium text-destructive">{attentionList.length} need immediate action</span></div>
           <ul className="space-y-1">
-            {actionNeeded.map((i) => (
+            {attentionList.slice(0, 8).map((i) => (
               <li key={i.id} className="text-xs text-destructive cursor-pointer hover:underline" onClick={() => setSelected(i)}>
-                • {i.name} — {i.capital_call_status === "Past Due" ? "Capital call past due" : i.docsign_status === "Not Sent" ? "DocuSign not sent" : i.next_action}
+                • {i.name} — {i.capital_call_status === "Past Due" ? "Capital call past due" : i.docsign_status === "Not Sent" || i.docsign_status === "Pending" ? `DocuSign ${i.docsign_status.toLowerCase()}` : i.next_action ?? "Overdue action"}
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      {/* Preset chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {PRESETS.map((p) => (
+          <button key={p.key} onClick={() => setPreset(p.key)}
+            className={cn("rounded-full border px-3 py-1 text-xs font-medium transition",
+              preset === p.key
+                ? "border-navy bg-navy text-white"
+                : "border-border bg-card text-muted-foreground hover:bg-muted")}>
+            {p.label} {typeof p.count === "number" && <span className={cn("ml-1", preset === p.key ? "text-white/70" : "text-muted-foreground/60")}>({p.count})</span>}
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-48">
@@ -286,67 +357,343 @@ function InvestmentsPage() {
         </table>
       </div>
 
-      {selected && <InvestmentPanel investment={selected} onClose={() => setSelected(null)} onSaved={() => { qc.invalidateQueries({ queryKey: ["investments"] }); setSelected(null); }} onDelete={() => remove(selected.id)} />}
+      {selected && <InvestmentPanel investment={selected} onClose={() => setSelected(null)} onSaved={(updated) => { qc.invalidateQueries({ queryKey: ["investments"] }); if (updated) setSelected(updated); else setSelected(null); }} onDelete={() => remove(selected.id)} />}
       {creating && <InvestmentPanel investment={null} onClose={() => setCreating(false)} onSaved={() => { qc.invalidateQueries({ queryKey: ["investments"] }); setCreating(false); }} onDelete={() => {}} />}
+      {showPortfolioAI && <PortfolioAIModal investments={investments} onClose={() => setShowPortfolioAI(false)} />}
     </div>
   );
 }
 
-function InvestmentPanel({ investment, onClose, onSaved, onDelete }: { investment: Investment | null; onClose: () => void; onSaved: () => void; onDelete: () => void }) {
+function shortEntity(e: string | null) {
+  return (e ?? "—")
+    .replace("Aquila Capital Partners LLC", "Aquila")
+    .replace("Columbia Private Trust IRA", "Columbia IRA")
+    .replace("Pacific Premier Trust IRA", "PPT IRA");
+}
+
+function StatCard({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "ok" | "warn" }) {
+  return (
+    <div className={cn("rounded-lg border p-4",
+      tone === "warn" ? "border-destructive/30 bg-destructive/5" :
+      "border-border bg-card")}>
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-2xl font-semibold", tone === "warn" && "text-destructive")}>{value}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+type AIResult = { summary: string; risks: string; next_action: string };
+
+function InvestmentPanel({ investment, onClose, onSaved, onDelete }: { investment: Investment | null; onClose: () => void; onSaved: (updated?: Investment) => void; onDelete: () => void }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(investment === null);
   const [form, setForm] = useState<Partial<Investment>>(investment ?? { status: "Active", capital_call_status: "N/A", docsign_status: "N/A" });
   const [saving, setSaving] = useState(false);
+  const [ai, setAi] = useState<AIResult | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [note, setNote] = useState("");
+
+  const investmentId = investment?.id;
+
+  const { data: activity = [] } = useQuery({
+    enabled: !!investmentId,
+    queryKey: ["investment-activity", investmentId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("investment_activity" as never)
+        .select("*").eq("investment_id", investmentId!).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; note: string; created_by: string; created_at: string }[];
+    },
+  });
+
+  const addNote = useMutation({
+    mutationFn: async (n: string) => {
+      const { error } = await supabase.from("investment_activity" as never).insert({
+        investment_id: investmentId, note: n, created_by: "Kennedy",
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["investment-activity", investmentId] }); setNote(""); toast.success("Note added"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name) return toast.error("Name required");
     setSaving(true);
-    let error;
+    let error, data;
     if (investment?.id) {
-      ({ error } = await supabase.from("investments").update({ ...(form as any), updated_at: new Date().toISOString() }).eq("id", investment.id));
+      ({ error, data } = await supabase.from("investments").update({ ...(form as any), updated_at: new Date().toISOString() }).eq("id", investment.id).select().single());
     } else {
-      ({ error } = await supabase.from("investments").insert(form as any));
+      ({ error, data } = await supabase.from("investments").insert(form as any).select().single());
     }
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success(investment ? "Updated" : "Created");
-    onSaved();
+    setEditing(false);
+    onSaved(data as unknown as Investment);
   }
+
+  async function runAI() {
+    if (!investment) return;
+    setAiLoading(true); setAi(null);
+    try {
+      const payload = {
+        name: investment.name, category: investment.category, status: investment.status,
+        amount_committed: investment.amount_committed, capital_call_status: investment.capital_call_status,
+        docsign_status: investment.docsign_status, next_action: investment.next_action,
+        next_action_due: investment.next_action_due, notes: investment.notes, contact: investment.contact,
+      };
+      const { data, error } = await supabase.functions.invoke("investment-ai", { body: { mode: "single", data: payload } });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error ?? "AI request failed");
+      setAi(data.result as AIResult);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function markActionDone() {
+    if (!investment) return;
+    const { error } = await supabase.from("investments")
+      .update({ next_action: null, next_action_due: null, updated_at: new Date().toISOString() })
+      .eq("id", investment.id);
+    if (error) return toast.error(error.message);
+    toast.success("Action marked done");
+    onSaved({ ...investment, next_action: null, next_action_due: null });
+  }
+
+  function copyEmail() {
+    const email = (investment?.contact ?? "").match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0];
+    if (!email) return toast.error("No email in contact field");
+    navigator.clipboard.writeText(email);
+    toast.success(`Copied ${email}`);
+  }
+
+  const contactEmail = investment?.contact ? investment.contact.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0] : null;
+  const overdue = investment?.next_action_due && new Date(investment.next_action_due) < new Date(new Date().toDateString());
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end bg-foreground/20 p-4" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={save} className="flex h-full w-full max-w-xl flex-col overflow-y-auto rounded-lg border border-border bg-card shadow-2xl">
+      <div onClick={(e) => e.stopPropagation()} className="flex h-full w-full max-w-xl flex-col overflow-y-auto rounded-lg border border-border bg-card shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-4">
-          <h3 className="text-base font-semibold">{investment ? investment.name : "New investment"}</h3>
-          <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold truncate pr-2">{investment ? investment.name : "New investment"}</h3>
+          <div className="flex items-center gap-2 shrink-0">
+            {investment && !editing && (
+              <>
+                <button type="button" onClick={runAI} disabled={aiLoading} className="inline-flex items-center gap-1 rounded-md border border-gold/50 bg-gold/10 px-2 py-1 text-xs text-navy hover:bg-gold/20 disabled:opacity-60">
+                  {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} Ask AI
+                </button>
+                <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                  <Pencil className="h-3 w-3" /> Edit
+                </button>
+              </>
+            )}
             {investment?.id && <button type="button" onClick={onDelete} className="rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10">Delete</button>}
-            {investment?.drive_folder_link && <a href={investment.drive_folder_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-navy hover:bg-muted"><ExternalLink className="h-3 w-3" /> Drive</a>}
             <button type="button" onClick={onClose} className="rounded p-1 hover:bg-muted"><X className="h-4 w-4" /></button>
           </div>
         </div>
-        <div className="flex-1 space-y-3 p-5">
-          {[["Investment name","name","text"],["Fund / Entity","fund_entity","text"],["Amount committed","amount_committed","text"],["Contact","contact","text"],["Next action","next_action","text"],["Drive folder link","drive_folder_link","text"]].map(([label, field, type]) => (
-            <label key={field} className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-              <input type={type} value={(form as any)[field] ?? ""} onChange={(e) => setForm({ ...form, [field]: e.target.value || null })} className="inp" /></label>
-          ))}
-          <div className="grid grid-cols-2 gap-3">
-            {[["Holding entity","holding_entity",["Aquila Capital Partners LLC","Columbia Private Trust IRA","Pacific Premier Trust IRA","Personal"]],["Category","category",["FinTech","InsurTech","AI","BioTech","DTC","Energy","Fund / LP","Media & Entertainment","Real Estate","Other"]],["Status","status",["Active","Pending","Closed","Exited"]],["Capital call","capital_call_status",["Funded","Pending","Past Due","N/A"]],["DocuSign","docsign_status",["Signed","Pending","Not Sent","N/A"]]].map(([label, field, opts]) => (
-              <label key={field as string} className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">{label as string}</span>
-                <select value={(form as any)[field as string] ?? ""} onChange={(e) => setForm({ ...form, [field as string]: e.target.value })} className="inp">
-                  <option value="">—</option>
-                  {(opts as string[]).map((o) => <option key={o}>{o}</option>)}
-                </select></label>
-            ))}
-            <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Next action due</span>
-              <input type="date" value={form.next_action_due ?? ""} onChange={(e) => setForm({ ...form, next_action_due: e.target.value || null })} className="inp" /></label>
+
+        {investment && !editing ? (
+          <div className="flex-1 space-y-5 p-5">
+            {/* Badges row */}
+            <div className="flex flex-wrap items-center gap-2">
+              {investment.category && <span className="rounded-full bg-navy/10 text-navy border border-navy/20 px-2.5 py-0.5 text-xs font-medium">{investment.category}</span>}
+              <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium", STATUS_COLORS[investment.status] ?? "bg-muted text-muted-foreground border-border")}>{investment.status}</span>
+              <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium", CALL_COLORS[investment.capital_call_status ?? "N/A"] ?? "bg-muted text-muted-foreground border-border")}>Call: {investment.capital_call_status ?? "N/A"}</span>
+              <span className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs">DocuSign: {investment.docsign_status ?? "N/A"}</span>
+              {investment.amount_committed && <span className="rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-xs font-medium text-navy">{investment.amount_committed}</span>}
+            </div>
+
+            <Field label="Holding entity" value={investment.holding_entity ?? "—"} />
+            {investment.fund_entity && investment.fund_entity !== investment.name && <Field label="Fund / entity" value={investment.fund_entity} />}
+            {investment.contact && (
+              <div>
+                <div className="text-xs font-medium text-muted-foreground mb-0.5">Contact</div>
+                {contactEmail ? (
+                  <a href={`mailto:${contactEmail}`} className="text-sm text-navy hover:underline">{investment.contact}</a>
+                ) : <div className="text-sm">{investment.contact}</div>}
+              </div>
+            )}
+            {investment.notes && (
+              <div>
+                <div className="text-xs font-medium text-muted-foreground mb-1">Notes</div>
+                <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">{investment.notes}</p>
+              </div>
+            )}
+            {investment.next_action && (
+              <div className={cn("rounded-lg border p-3", overdue ? "border-destructive/30 bg-destructive/5" : "border-gold/40 bg-gold/5")}>
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Next Action</div>
+                <div className="text-sm">{investment.next_action}</div>
+                {investment.next_action_due && (
+                  <div className={cn("mt-1 text-xs font-medium", overdue ? "text-destructive" : "text-muted-foreground")}>
+                    Due {investment.next_action_due} {overdue && "· OVERDUE"}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quick actions */}
+            <div className="flex flex-wrap gap-2">
+              {investment.drive_folder_link && (
+                <a href={investment.drive_folder_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-navy hover:bg-muted">
+                  <ExternalLink className="h-3 w-3" /> Open Drive
+                </a>
+              )}
+              {contactEmail && (
+                <button onClick={copyEmail} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted">
+                  <Copy className="h-3 w-3" /> Copy Email
+                </button>
+              )}
+              {contactEmail && (
+                <a href={`mailto:${contactEmail}`} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted">
+                  <Mail className="h-3 w-3" /> Email
+                </a>
+              )}
+              {investment.next_action && (
+                <button onClick={markActionDone} className="inline-flex items-center gap-1 rounded-md border border-status-approved/30 bg-status-approved/10 px-3 py-1.5 text-xs text-status-approved hover:bg-status-approved/20">
+                  <CheckCircle2 className="h-3 w-3" /> Mark Action Done
+                </button>
+              )}
+            </div>
+
+            {/* AI result */}
+            {(aiLoading || ai) && (
+              <div className="rounded-lg border border-gold/40 bg-gold/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-navy">
+                  <Sparkles className="h-4 w-4" /> AI Analysis
+                </div>
+                {aiLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Analyzing…</div>}
+                {ai && (
+                  <>
+                    <AISection label="Status" body={ai.summary} />
+                    <AISection label="Risks" body={ai.risks} />
+                    <AISection label="Recommended Action" body={ai.next_action} />
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Activity log */}
+            <div className="pt-2 border-t border-border">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Activity Log</div>
+              <div className="space-y-2 mb-3">
+                {activity.length === 0 && <div className="text-xs text-muted-foreground italic">No activity logged yet</div>}
+                {activity.map((a) => (
+                  <div key={a.id} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+                    <div className="text-sm whitespace-pre-wrap">{a.note}</div>
+                    <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {a.created_by} · {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note…" className="flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm" />
+                <button onClick={() => note.trim() && addNote.mutate(note.trim())} disabled={!note.trim() || addNote.isPending} className="rounded-md bg-navy px-3 py-2 text-xs font-medium text-white disabled:opacity-60">
+                  {addNote.isPending ? "…" : "Add"}
+                </button>
+              </div>
+            </div>
           </div>
-          <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Notes</span>
-            <textarea rows={4} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="inp" /></label>
+        ) : (
+          <form onSubmit={save} className="flex-1 flex flex-col">
+            <div className="flex-1 space-y-3 p-5">
+              {[["Investment name","name","text"],["Fund / Entity","fund_entity","text"],["Amount committed","amount_committed","text"],["Contact","contact","text"],["Next action","next_action","text"],["Drive folder link","drive_folder_link","text"]].map(([label, field, type]) => (
+                <label key={field} className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
+                  <input type={type} value={(form as any)[field] ?? ""} onChange={(e) => setForm({ ...form, [field]: e.target.value || null })} className="inp" /></label>
+              ))}
+              <div className="grid grid-cols-2 gap-3">
+                {[["Holding entity","holding_entity",["Aquila Capital Partners LLC","Columbia Private Trust IRA","Pacific Premier Trust IRA","Personal"]],["Category","category",["FinTech","InsurTech","AI","BioTech","DTC","Energy","Fund / LP","Media & Entertainment","Real Estate","Other"]],["Status","status",["Active","Pending","Closed","Exited"]],["Capital call","capital_call_status",["Funded","Pending","Past Due","N/A"]],["DocuSign","docsign_status",["Signed","Pending","Not Sent","N/A"]]].map(([label, field, opts]) => (
+                  <label key={field as string} className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">{label as string}</span>
+                    <select value={(form as any)[field as string] ?? ""} onChange={(e) => setForm({ ...form, [field as string]: e.target.value })} className="inp">
+                      <option value="">—</option>
+                      {(opts as string[]).map((o) => <option key={o}>{o}</option>)}
+                    </select></label>
+                ))}
+                <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Next action due</span>
+                  <input type="date" value={form.next_action_due ?? ""} onChange={(e) => setForm({ ...form, next_action_due: e.target.value || null })} className="inp" /></label>
+              </div>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Notes</span>
+                <textarea rows={4} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="inp" /></label>
+            </div>
+            <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-card px-5 py-4">
+              <button type="button" onClick={() => investment ? setEditing(false) : onClose()} className="rounded-md border border-border px-3 py-2 text-sm">Cancel</button>
+              <button type="submit" disabled={saving} className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving ? "Saving…" : "Save"}</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-muted-foreground mb-0.5">{label}</div>
+      <div className="text-sm">{value}</div>
+    </div>
+  );
+}
+
+function AISection({ label, body }: { label: string; body: string }) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-navy mb-0.5">{label}</div>
+      <div className="text-sm leading-relaxed">{body}</div>
+    </div>
+  );
+}
+
+function PortfolioAIModal({ investments, onClose }: { investments: Investment[]; onClose: () => void }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["portfolio-ai", investments.length],
+    queryFn: async () => {
+      const summary = investments.map((i) => ({
+        name: i.name, status: i.status, capital_call_status: i.capital_call_status,
+        docsign_status: i.docsign_status, next_action: i.next_action, next_action_due: i.next_action_due,
+      }));
+      const { data, error } = await supabase.functions.invoke("investment-ai", { body: { mode: "portfolio", data: summary } });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error ?? "AI request failed");
+      return data.result as { bullets: string[] };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl rounded-lg border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border bg-navy px-5 py-4 rounded-t-lg">
+          <div className="flex items-center gap-2 text-white">
+            <Sparkles className="h-5 w-5 text-gold" />
+            <h3 className="text-base font-semibold">AI Portfolio Summary</h3>
+          </div>
+          <button onClick={onClose} className="rounded p-1 text-white/80 hover:bg-white/10"><X className="h-4 w-4" /></button>
         </div>
-        <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-card px-5 py-4">
-          <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-sm">Cancel</button>
-          <button type="submit" disabled={saving} className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving ? "Saving…" : "Save"}</button>
+        <div className="p-6 min-h-40">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Analyzing {investments.length} investments…
+            </div>
+          )}
+          {error && <div className="text-sm text-destructive">{(error as Error).message}</div>}
+          {data?.bullets && (
+            <ul className="space-y-3">
+              {data.bullets.map((b, idx) => (
+                <li key={idx} className="flex gap-3">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-gold" />
+                  <span className="text-sm leading-relaxed">{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </form>
+      </div>
     </div>
   );
 }
