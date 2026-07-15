@@ -1,14 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, X, ExternalLink, AlertCircle, Search } from "lucide-react";
+import { Plus, X, ExternalLink, AlertCircle, Search, Sparkles, Copy, CheckCircle2, Pencil, Loader2, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/investments")({
   component: InvestmentsPage,
 });
+
+const CHART_COLORS = ["#1B3A6B", "#C8A96E", "#2C5282", "#B8944D", "#4A6FA5", "#8B7A3F", "#6B8CBF", "#D4C08A", "#375987", "#A8935D"];
+
+type Preset = "all" | "attention" | "past_due" | "pending_docs" | "exited";
+
+function needsAttention(i: Investment): boolean {
+  if (i.capital_call_status === "Past Due") return true;
+  if (i.docsign_status === "Pending" || i.docsign_status === "Not Sent") return true;
+  if (i.next_action_due && new Date(i.next_action_due) < new Date(new Date().toDateString())) return true;
+  return false;
+}
 
 type Investment = {
   id: string; name: string; fund_entity: string | null; holding_entity: string | null;
