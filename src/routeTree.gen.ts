@@ -15,11 +15,13 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedWeeklyRouteImport } from './routes/_authenticated/weekly'
 import { Route as AuthenticatedTravelPlannerRouteImport } from './routes/_authenticated/travel-planner'
+import { Route as AuthenticatedTravelBookingsRouteImport } from './routes/_authenticated/travel-bookings'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedInvestmentsRouteImport } from './routes/_authenticated/investments'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDelegationsRouteImport } from './routes/_authenticated/delegations'
+import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -57,6 +59,12 @@ const AuthenticatedTravelPlannerRoute =
     path: '/travel-planner',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTravelBookingsRoute =
+  AuthenticatedTravelBookingsRouteImport.update({
+    id: '/travel-bookings',
+    path: '/travel-bookings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -84,6 +92,11 @@ const AuthenticatedDelegationsRoute =
     path: '/delegations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -125,11 +138,13 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/calendar': typeof AuthenticatedCalendarRoute
+  '/contacts': typeof AuthenticatedContactsRoute
   '/delegations': typeof AuthenticatedDelegationsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/investments': typeof AuthenticatedInvestmentsRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/travel-bookings': typeof AuthenticatedTravelBookingsRoute
   '/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -142,11 +157,13 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/calendar': typeof AuthenticatedCalendarRoute
+  '/contacts': typeof AuthenticatedContactsRoute
   '/delegations': typeof AuthenticatedDelegationsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/investments': typeof AuthenticatedInvestmentsRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/travel-bookings': typeof AuthenticatedTravelBookingsRoute
   '/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/': typeof AuthenticatedIndexRoute
@@ -162,11 +179,13 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
+  '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/delegations': typeof AuthenticatedDelegationsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/investments': typeof AuthenticatedInvestmentsRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/travel-bookings': typeof AuthenticatedTravelBookingsRoute
   '/_authenticated/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/_authenticated/weekly': typeof AuthenticatedWeeklyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -183,11 +202,13 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/calendar'
+    | '/contacts'
     | '/delegations'
     | '/inbox'
     | '/investments'
     | '/pipeline'
     | '/settings'
+    | '/travel-bookings'
     | '/travel-planner'
     | '/weekly'
     | '/.lovable/oauth/consent'
@@ -200,11 +221,13 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/calendar'
+    | '/contacts'
     | '/delegations'
     | '/inbox'
     | '/investments'
     | '/pipeline'
     | '/settings'
+    | '/travel-bookings'
     | '/travel-planner'
     | '/weekly'
     | '/'
@@ -219,11 +242,13 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/calendar'
+    | '/_authenticated/contacts'
     | '/_authenticated/delegations'
     | '/_authenticated/inbox'
     | '/_authenticated/investments'
     | '/_authenticated/pipeline'
     | '/_authenticated/settings'
+    | '/_authenticated/travel-bookings'
     | '/_authenticated/travel-planner'
     | '/_authenticated/weekly'
     | '/_authenticated/'
@@ -286,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTravelPlannerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/travel-bookings': {
+      id: '/_authenticated/travel-bookings'
+      path: '/travel-bookings'
+      fullPath: '/travel-bookings'
+      preLoaderRoute: typeof AuthenticatedTravelBookingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -319,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/delegations'
       fullPath: '/delegations'
       preLoaderRoute: typeof AuthenticatedDelegationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contacts': {
+      id: '/_authenticated/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AuthenticatedContactsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/calendar': {
@@ -368,11 +407,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
+  AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedDelegationsRoute: typeof AuthenticatedDelegationsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedInvestmentsRoute: typeof AuthenticatedInvestmentsRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTravelBookingsRoute: typeof AuthenticatedTravelBookingsRoute
   AuthenticatedTravelPlannerRoute: typeof AuthenticatedTravelPlannerRoute
   AuthenticatedWeeklyRoute: typeof AuthenticatedWeeklyRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -380,11 +421,13 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
+  AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedDelegationsRoute: AuthenticatedDelegationsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedInvestmentsRoute: AuthenticatedInvestmentsRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTravelBookingsRoute: AuthenticatedTravelBookingsRoute,
   AuthenticatedTravelPlannerRoute: AuthenticatedTravelPlannerRoute,
   AuthenticatedWeeklyRoute: AuthenticatedWeeklyRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
