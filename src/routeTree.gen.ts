@@ -15,6 +15,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedWeeklyRouteImport } from './routes/_authenticated/weekly'
 import { Route as AuthenticatedTravelPlannerRouteImport } from './routes/_authenticated/travel-planner'
+import { Route as AuthenticatedTravelBookingsRouteImport } from './routes/_authenticated/travel-bookings'
+import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedInvestmentsRouteImport } from './routes/_authenticated/investments'
@@ -57,6 +59,17 @@ const AuthenticatedTravelPlannerRoute =
     path: '/travel-planner',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTravelBookingsRoute =
+  AuthenticatedTravelBookingsRouteImport.update({
+    id: '/travel-bookings',
+    path: '/travel-bookings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -131,6 +144,8 @@ export interface FileRoutesByFullPath {
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/travel-planner': typeof AuthenticatedTravelPlannerRoute
+  '/travel-bookings': typeof AuthenticatedTravelBookingsRoute
+  '/contacts': typeof AuthenticatedContactsRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -148,6 +163,8 @@ export interface FileRoutesByTo {
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/travel-planner': typeof AuthenticatedTravelPlannerRoute
+  '/travel-bookings': typeof AuthenticatedTravelBookingsRoute
+  '/contacts': typeof AuthenticatedContactsRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -168,6 +185,8 @@ export interface FileRoutesById {
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/travel-planner': typeof AuthenticatedTravelPlannerRoute
+  '/_authenticated/travel-bookings': typeof AuthenticatedTravelBookingsRoute
+  '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/weekly': typeof AuthenticatedWeeklyRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -286,6 +305,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTravelPlannerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/travel-bookings': {
+      id: '/_authenticated/travel-bookings'
+      path: '/travel-bookings'
+      fullPath: '/travel-bookings'
+      preLoaderRoute: typeof AuthenticatedTravelBookingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contacts': {
+      id: '/_authenticated/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AuthenticatedContactsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -374,6 +407,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTravelPlannerRoute: typeof AuthenticatedTravelPlannerRoute
+  AuthenticatedTravelBookingsRoute: typeof AuthenticatedTravelBookingsRoute
+  AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedWeeklyRoute: typeof AuthenticatedWeeklyRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -386,6 +421,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTravelPlannerRoute: AuthenticatedTravelPlannerRoute,
+  AuthenticatedTravelBookingsRoute: AuthenticatedTravelBookingsRoute,
+  AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedWeeklyRoute: AuthenticatedWeeklyRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
