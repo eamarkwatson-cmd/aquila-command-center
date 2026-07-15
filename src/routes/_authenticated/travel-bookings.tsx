@@ -74,7 +74,10 @@ function TravelBookingsPage() {
     let list = bookings;
     if (tripFilter !== "all") list = list.filter((b) => b.trip_name === tripFilter);
     const now = new Date();
-    if (filter === "upcoming") list = list.filter((b) => !b.event_date || new Date(b.event_date) >= new Date(now.toDateString()));
+    if (filter === "upcoming") {
+      const todayStr = now.toISOString().slice(0, 10);
+      list = list.filter((b) => !b.event_date || b.event_date >= todayStr);
+    }
     if (filter === "pending") list = list.filter((b) => b.status === "Pending");
     if (filter === "deadlines") list = list.filter((b) => b.cancellation_deadline && urgencyLevel(b.cancellation_deadline) !== "none" && urgencyLevel(b.cancellation_deadline) !== "ok");
     return list;
