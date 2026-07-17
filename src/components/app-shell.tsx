@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Linkedin, ListChecks, Briefcase,
   Inbox, Calendar, Settings, LogOut, AlertTriangle, BarChart2, Plane,
-  Luggage, Users,
+  Luggage, Users, BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ const NAV = [
   { to: "/travel-planner", label: "Travel Planner", icon: Plane },
   { to: "/travel-bookings", label: "Travel Bookings", icon: Luggage },
   { to: "/contacts", label: "Contacts", icon: Users },
+  { to: "/book", label: "Book Generator", icon: BookOpen },
   { to: "/investments", label: "Investments", icon: Briefcase },
   { to: "/inbox", label: "Inbox Highlights", icon: Inbox },
   { to: "/calendar", label: "Calendar", icon: Calendar },

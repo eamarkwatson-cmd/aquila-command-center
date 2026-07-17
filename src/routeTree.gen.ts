@@ -17,6 +17,7 @@ import { Route as AuthenticatedWeeklyRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedTravelPlannerRouteImport } from './routes/_authenticated/travel-planner'
 import { Route as AuthenticatedTravelBookingsRouteImport } from './routes/_authenticated/travel-bookings'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
+import { Route as AuthenticatedBookRouteImport } from './routes/_authenticated/book'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedInvestmentsRouteImport } from './routes/_authenticated/investments'
@@ -68,6 +69,11 @@ const AuthenticatedTravelBookingsRoute =
 const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBookRoute = AuthenticatedBookRouteImport.update({
+  id: '/book',
+  path: '/book',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/travel-bookings': typeof AuthenticatedTravelBookingsRoute
   '/contacts': typeof AuthenticatedContactsRoute
+  '/book': typeof AuthenticatedBookRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/travel-planner': typeof AuthenticatedTravelPlannerRoute
   '/travel-bookings': typeof AuthenticatedTravelBookingsRoute
   '/contacts': typeof AuthenticatedContactsRoute
+  '/book': typeof AuthenticatedBookRoute
   '/weekly': typeof AuthenticatedWeeklyRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -319,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContactsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/book': {
+      id: '/_authenticated/book'
+      path: '/book'
+      fullPath: '/book'
+      preLoaderRoute: typeof AuthenticatedBookRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -409,6 +424,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTravelPlannerRoute: typeof AuthenticatedTravelPlannerRoute
   AuthenticatedTravelBookingsRoute: typeof AuthenticatedTravelBookingsRoute
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
+  AuthenticatedBookRoute: typeof AuthenticatedBookRoute
   AuthenticatedWeeklyRoute: typeof AuthenticatedWeeklyRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -423,6 +439,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTravelPlannerRoute: AuthenticatedTravelPlannerRoute,
   AuthenticatedTravelBookingsRoute: AuthenticatedTravelBookingsRoute,
   AuthenticatedContactsRoute: AuthenticatedContactsRoute,
+  AuthenticatedBookRoute: AuthenticatedBookRoute,
   AuthenticatedWeeklyRoute: AuthenticatedWeeklyRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
