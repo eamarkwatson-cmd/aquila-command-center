@@ -71,13 +71,15 @@ function BookPage() {
   const [useLinkedIn, setUseLinkedIn] = useState(true);
 
   // Pull LinkedIn posts from Notion pipeline as context
-  const { data: pipelineData, isLoading: loadingPipeline } = useQuery({
+  const { data: pipelineData, isLoading: loadingPipeline, error: pipelineError } = useQuery({
     queryKey: ["book-linkedin-posts"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("notion-list-pipeline");
-      if (error) return [];
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
       return (data as any)?.posts ?? [];
     },
+    retry: 0,
   });
 
   const linkedInContext = useLinkedIn && pipelineData?.length
@@ -128,18 +130,12 @@ Output only the manuscript text — no meta-commentary or preamble.`;
     if (chapter === "custom" && !customPrompt.trim()) { toast.error("Enter a custom prompt"); return; }
     setLoading(true); setOutput("");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1500,
-          messages: [{ role: "user", content: buildPrompt() }],
-        }),
+      const { data, error } = await supabase.functions.invoke("book-generate", {
+        body: { prompt: buildPrompt(), max_tokens: 1500 },
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      setOutput(data.content?.[0]?.text ?? "No output returned.");
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setOutput((data as any)?.text ?? "No output returned.");
     } catch (e: any) {
       toast.error(e.message || "Generation failed");
     }
@@ -173,6 +169,14 @@ Output only the manuscript text — no meta-commentary or preamble.`;
           {loadingPipeline && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
       </div>
+
+      {pipelineError && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Couldn't pull LinkedIn posts from Notion — generation will run without that context.
+          Likely cause: <code className="font-mono">NOTION_API_KEY</code> missing from Supabase Vault.
+          <span className="block text-xs opacity-80 mt-1">{(pipelineError as Error).message}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT — Controls */}

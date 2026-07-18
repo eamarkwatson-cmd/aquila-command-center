@@ -5,7 +5,7 @@ import { DelegationStatusDot, type DelegationStatus } from "@/components/status-
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, differenceInDays, isSameDay } from "date-fns";
-import { Plus, X, Trash2, AlertTriangle, CheckCircle2, Clock, MessageSquare, ChevronDown, Flag } from "lucide-react";
+import { Plus, X, Trash2, AlertTriangle, CheckCircle2, Clock, MessageSquare, ChevronDown, Flag, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/delegations")({
@@ -53,6 +53,26 @@ function DelegationsPage() {
   const [creating, setCreating] = useState(false);
   const [noteTarget, setNoteTarget] = useState<Row | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [syncing, setSyncing] = useState(false);
+
+  async function syncNotion() {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-delegations");
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const s = data as any;
+      qc.invalidateQueries({ queryKey: ["delegations"] });
+      toast.success(
+        `Synced with Notion — ${s.pulled_new} new pulled, ${s.pulled_updates} updated here, ${s.pushed_new} pushed, ${s.pushed_updates} updated in Notion` +
+        (s.errors?.length ? ` (${s.errors.length} errors — check function logs)` : "")
+      );
+    } catch (e: any) {
+      toast.error(`Notion sync failed: ${e.message ?? e}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const { data: rows = [] } = useQuery<Row[]>({
     queryKey: ["delegations"],
@@ -166,10 +186,16 @@ function DelegationsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Delegations</h1>
           <p className="text-sm text-muted-foreground">{openCount} open · {doneCount} done · sorted by priority</p>
         </div>
-        <button onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy/90">
-          <Plus className="h-4 w-4" /> New delegation
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={syncNotion} disabled={syncing}
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60">
+            <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} /> {syncing ? "Syncing…" : "Sync Notion"}
+          </button>
+          <button onClick={() => setCreating(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy/90">
+            <Plus className="h-4 w-4" /> New delegation
+          </button>
+        </div>
       </div>
 
       {/* Escalation banner */}

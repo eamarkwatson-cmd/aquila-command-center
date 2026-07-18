@@ -1,5 +1,6 @@
-// Travel Planner mock service. Swap `searchTravel` with a real API later
-// (e.g. Amadeus, Duffel, Kiwi). Keep the return shape stable.
+// Travel Planner service. `searchTravel` is now LIVE via the travel-search
+// edge function (Claude + web search); the mock below is a graceful fallback.
+import { supabase } from "@/integrations/supabase/client";
 
 export type FlightOption = {
   id: string;
@@ -234,7 +235,49 @@ function findHotels(destination: string): { hotels: HotelOption[]; key: string }
   return { hotels: matches, key };
 }
 
-export async function searchTravel(q: TravelQuery): Promise<TravelResults> {
+// LIVE search via the `travel-search` edge function (Claude + web search).
+// Falls back to the local mock only if the function errors, and flags it.
+export async function searchTravel(q: TravelQuery): Promise<TravelResults & { live: boolean; liveError?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("travel-search", {
+      body: { mode: "travel", ...q },
+    });
+    if (error) throw error;
+    if ((data as any)?.error) throw new Error((data as any).error);
+    const d = data as any;
+    return {
+      flights: d.flights ?? [],
+      hotels: d.hotels ?? [],
+      groundTransport: d.groundTransport ?? [],
+      destinationKey: d.destinationKey ?? normalizeCityKey(q.destination),
+      live: true,
+    };
+  } catch (e) {
+    const fallback = await searchTravelMock(q);
+    return { ...fallback, live: false, liveError: (e as Error).message };
+  }
+}
+
+export type CityRec = {
+  category: string;
+  name: string;
+  detail: string | null;
+  address: string | null;
+  phone: string | null;
+  booking_url: string | null;
+};
+
+// Live "Mark's Week" recommendations for a city (Claude + web search).
+export async function fetchLiveCityRecs(city: string): Promise<CityRec[]> {
+  const { data, error } = await supabase.functions.invoke("travel-search", {
+    body: { mode: "city_recs", city },
+  });
+  if (error) throw error;
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return ((data as any)?.recommendations ?? []) as CityRec[];
+}
+
+async function searchTravelMock(q: TravelQuery): Promise<TravelResults> {
   await new Promise((r) => setTimeout(r, 550));
   const { hotels, key } = findHotels(q.destination);
   let flights = generateFlights(q);

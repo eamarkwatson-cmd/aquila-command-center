@@ -5,8 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plane, Hotel, Search, Copy, MapPin, Loader2, RotateCcw, Star, Car, MapPinned, Phone } from "lucide-react";
 import { toast } from "sonner";
 import {
-  searchTravel, formatFlightForClipboard, normalizeCityKey,
-  type TravelResults, type FlightOption, type HotelOption, type GroundTransportOption,
+  searchTravel, fetchLiveCityRecs, formatFlightForClipboard, normalizeCityKey,
+  type TravelResults, type FlightOption, type HotelOption, type GroundTransportOption, type CityRec,
 } from "@/services/travelPlannerService";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +70,17 @@ function TravelPlannerPage() {
     },
   });
 
+  // LIVE Mark's Week recs pulled from the web in real time (Claude + web search)
+  const { data: liveRecs = [], isLoading: loadingLiveRecs, error: liveRecsError } = useQuery<CityRec[]>({
+    queryKey: ["travel-marksweek-live", destKey],
+    enabled: !!destKey && !!results,
+    staleTime: 1000 * 60 * 30,
+    retry: 0,
+    queryFn: () => fetchLiveCityRecs(searchedDestination),
+  });
+
+  const [liveSearch, setLiveSearch] = useState<{ live: boolean; error?: string } | null>(null);
+
   async function onSearch() {
     if (!origin.trim() || !destination.trim()) {
       toast.error("Enter both origin and destination");
@@ -86,6 +97,7 @@ function TravelPlannerPage() {
         stops,
       });
       setResults(r);
+      setLiveSearch({ live: (r as any).live !== false, error: (r as any).liveError });
       setSearchedDestination(destination.trim());
     } catch (e: any) {
       setError(e?.message ?? "Search failed");
@@ -175,6 +187,14 @@ function TravelPlannerPage() {
       </div>
 
       {/* Results */}
+      {results && liveSearch && !liveSearch.live && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Live search unavailable — showing sample data. Likely cause: <code className="font-mono">ANTHROPIC_API_KEY</code> missing
+          from Supabase Vault, or the <code className="font-mono">travel-search</code> function isn't deployed yet.
+          {liveSearch.error && <span className="block text-xs opacity-80 mt-1">{liveSearch.error}</span>}
+        </div>
+      )}
+
       {results && (
         <div className="rounded-lg border border-border bg-card shadow-sm">
           <div className="flex flex-wrap items-center gap-1 border-b border-border px-4 pt-3">
@@ -185,13 +205,18 @@ function TravelPlannerPage() {
             <TabButton active={tab === "ground"} onClick={() => setTab("ground")}
               icon={<Car className="h-4 w-4" />} label={`Ground (${results.groundTransport.length})`} />
             <TabButton active={tab === "marksweek"} onClick={() => setTab("marksweek")}
-              icon={<MapPinned className="h-4 w-4" />} label={`Mark's Week (${marksWeekRecs.length})`} />
+              icon={<MapPinned className="h-4 w-4" />} label={`Mark's Week (${marksWeekRecs.length + liveRecs.length})`} />
           </div>
           <div className="p-4">
             {tab === "flights" && <FlightList flights={results.flights} />}
             {tab === "hotels" && <HotelGrid hotels={results.hotels} destination={searchedDestination} />}
             {tab === "ground" && <GroundTransportList items={results.groundTransport} destination={searchedDestination} />}
-            {tab === "marksweek" && <MarksWeekList recs={marksWeekRecs} destination={searchedDestination} loading={loadingRecs} />}
+            {tab === "marksweek" && (
+              <div className="space-y-6">
+                <LiveRecsSection recs={liveRecs} loading={loadingLiveRecs} error={liveRecsError as Error | null} destination={searchedDestination} />
+                <MarksWeekList recs={marksWeekRecs} destination={searchedDestination} loading={loadingRecs} />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -378,6 +403,80 @@ function GroundTransportList({ items, destination }: { items: GroundTransportOpt
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function LiveRecsSection({ recs, loading, error, destination }: { recs: CityRec[]; loading: boolean; error: Error | null; destination: string }) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Pulling live recommendations for {destination} from the web…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        Live recommendations unavailable — showing curated list only.
+        <span className="block text-xs opacity-80 mt-1">{error.message}</span>
+      </div>
+    );
+  }
+  if (recs.length === 0) return null;
+
+  const byCategory = recs.reduce((acc, r) => {
+    if (!acc[r.category]) acc[r.category] = [];
+    acc[r.category].push(r);
+    return acc;
+  }, {} as Record<string, CityRec[]>);
+
+  async function copy(rec: CityRec) {
+    const text = [rec.name, rec.address, rec.phone, rec.booking_url, rec.detail].filter(Boolean).join("\n");
+    await navigator.clipboard.writeText(text);
+    toast.success("Copied");
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Live</span>
+        <span className="text-xs text-muted-foreground">Fresh from the web for {destination} — refreshed each search</span>
+      </div>
+      <div className="space-y-5">
+        {Object.entries(byCategory).map(([cat, group]) => (
+          <div key={cat}>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</div>
+            <div className="space-y-2">
+              {group.map((rec, i) => (
+                <div key={`${cat}-${i}`} className="rounded-md border border-border bg-background p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">{rec.name}</div>
+                      {rec.address && <div className="text-xs text-muted-foreground mt-0.5">{rec.address}</div>}
+                      {rec.phone && <div className="text-xs text-muted-foreground">{rec.phone}</div>}
+                      {rec.detail && <div className="text-xs text-muted-foreground mt-1">{rec.detail}</div>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {rec.booking_url && (
+                        <a href={rec.booking_url} target="_blank" rel="noreferrer"
+                          className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-navy" title="Open">
+                          <MapPin className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <button onClick={() => copy(rec)} title="Copy details"
+                        className="rounded p-1.5 text-muted-foreground hover:bg-muted">
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

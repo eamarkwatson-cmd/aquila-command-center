@@ -25,7 +25,7 @@ function WeeklyReviewPage() {
     },
   });
 
-  const { data: posts = [] } = useQuery<Post[]>({
+  const { data: posts = [], error: pipelineError } = useQuery<Post[]>({
     queryKey: ["pipeline-weekly"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("notion-list-pipeline");
@@ -57,8 +57,13 @@ function WeeklyReviewPage() {
   const awaitingMark = stillOpen.filter((d) => d.owner === "Mark");
   const kennedyQueue = stillOpen.filter((d) => d.owner === "Kennedy");
 
-  // LinkedIn posts published this week
-  const postedThisWeek = posts.filter((p) => p.status === "Posted");
+  // LinkedIn posts published this week (scheduled date within this week; undated Posted items still count)
+  const postedThisWeek = posts.filter((p) => {
+    if (p.status !== "Posted") return false;
+    if (!p.scheduledDate) return true;
+    const d = new Date(p.scheduledDate);
+    return d >= weekStart && d <= weekEnd;
+  });
   const approvedPosts = posts.filter((p) => p.status === "Approved");
 
   // Hours freed estimate (each completed delegation = 20 min saved)
@@ -73,6 +78,13 @@ function WeeklyReviewPage() {
           {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
         </p>
       </div>
+
+      {pipelineError && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          LinkedIn numbers unavailable — Notion connection failed, so post counts below show 0.
+          Likely cause: <code className="font-mono">NOTION_API_KEY</code> missing from Supabase Vault.
+        </div>
+      )}
 
       {/* Value created this week */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
