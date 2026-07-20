@@ -20,4 +20,4 @@ jobs:
       - name: List migration status (no changes made)
         run: |
           supabase link --project-ref $PROJECT_REF
-          supabase migration list --project-ref $PROJECT_REF
+          supabase migration list --linked
