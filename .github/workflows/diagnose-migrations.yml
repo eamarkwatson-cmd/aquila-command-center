@@ -1,0 +1,23 @@
+name: Diagnose migration history (read-only)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: oxfkrthjpovhgwgxqvog
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: List migration status (no changes made)
+        run: |
+          supabase link --project-ref $PROJECT_REF
+          supabase migration list --project-ref $PROJECT_REF
